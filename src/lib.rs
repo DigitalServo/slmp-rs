@@ -1,5 +1,6 @@
 mod commands;
 mod device;
+mod manager;
 
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
@@ -11,8 +12,11 @@ use tokio::time::{timeout, Duration};
 use commands::read::*;
 use commands::write::*;
 
+use device::DeviceSize;
+
 // Public
-pub use device::*;
+pub use device::{AccessType, Device, DeviceType, DeviceData, DeviceBlock, BlockedDeviceData, TypedDevice};
+pub use manager::{SLMPConnectionManager, SLMPWorker, MonitorDevice, PLCData, PollingInterval};
 
 // Constants
 const BUFSIZE: usize = 1024;
