@@ -14,14 +14,14 @@ pub(crate) enum DeviceSize {
     QuadrupleWord = 4,
 }
 
-impl Into<u16> for DeviceSize {
+impl From<DeviceSize> for u16 {
     #[inline(always)]
-    fn into(self) -> u16 {
-        match self {
-            Self::Bit => 1,
-            Self::SingleWord => 1,
-            Self::DoubleWord => 2,
-            Self::QuadrupleWord => 4,
+    fn from(value: DeviceSize) -> Self {
+        match value {
+            DeviceSize::Bit => 1,
+            DeviceSize::SingleWord => 1,
+            DeviceSize::DoubleWord => 2,
+            DeviceSize::QuadrupleWord => 4,
         }
     }
 }

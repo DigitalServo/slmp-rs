@@ -1,4 +1,4 @@
-use crate::{AccessType, CPU, DataType, Device, SLMP4EConnectionProps};
+use crate::{AccessType, CPU, DataType, Device, DeviceSize, SLMP4EConnectionProps};
 use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 
 const COMMAND_BULK_READ: u16 = 0x0401;
@@ -54,7 +54,7 @@ fn construct_frame (query: SLMPBulkReadQuery) -> std::io::Result<Vec<u8>> {
     let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, access_type)?;
 
     let start_address: Box<[u8]> = query.start_device.serialize(query.connection_props.cpu)?;
-    let device_size_code: [u8; 2] = (query.device_num as u16 * query.data_type.device_size() as u16).to_le_bytes();
+    let device_size_code: [u8; 2] = (query.device_num as u16 * <DeviceSize as Into<u16>>::into(query.data_type.device_size())).to_le_bytes();
 
     let device_addr_bytelen: u8 = Device::addr_code_len(query.connection_props.cpu)?;
     let data_packet_bytelen: u8 = device_addr_bytelen + 2;

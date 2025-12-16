@@ -28,7 +28,7 @@ async fn test_bulk_access() {
 
     client.bulk_write(start_device, &data).await.unwrap();
 
-    let ret: Vec<DeviceData> = client.bulk_read(start_device, 1, DataType::U32).await.unwrap();
+    let ret: Vec<DeviceData> = client.bulk_read(start_device, 4, DataType::U32).await.unwrap();
     let ret: Vec<TypedData> = ret.into_iter().map(|x| x.data).collect::<Vec<TypedData>>();
 
     assert_eq!(data.to_vec(), ret);
