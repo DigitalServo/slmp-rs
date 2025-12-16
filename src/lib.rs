@@ -1,7 +1,7 @@
 mod commands;
 mod device;
 
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream};
@@ -139,6 +139,16 @@ pub struct SLMP4EConnectionProps {
     pub io_id: u16,
     pub area_id: u8,
     pub cpu_timer: u16,
+}
+
+impl TryFrom<SLMP4EConnectionProps> for SocketAddr {
+    type Error = std::io::Error;
+    fn try_from(value: SLMP4EConnectionProps) -> Result<Self, Self::Error> {
+        let ip: IpAddr = value.ip.parse::<IpAddr>()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+        let port: u16 = value.port;
+        Ok(SocketAddr::new(ip, port))
+    }
 }
 
 #[derive(Clone)]
