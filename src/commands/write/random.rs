@@ -4,7 +4,7 @@ use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 const COMMAND_RANDOM_WRITE: u16 = 0x1402;
 
 pub struct SLMPRandomWriteQuery<'a> {
-    pub connection_props: SLMP4EConnectionProps,
+    pub connection_props: &'a SLMP4EConnectionProps,
     pub sorted_data: &'a [DeviceData],
     pub bit_access_points: u8,
     pub single_word_access_points: u8,

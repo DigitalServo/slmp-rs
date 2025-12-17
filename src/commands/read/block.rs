@@ -6,7 +6,7 @@ use crate::div_ceil;
 const COMMAND_BLOCK_READ: u16 = 0x0406;
 
 pub struct SLMPBlockReadQuery<'a>{
-    pub connection_props: SLMP4EConnectionProps,
+    pub connection_props: &'a SLMP4EConnectionProps,
     pub sorted_block: &'a [DeviceBlock],
     pub word_access_points: u8,
     pub bit_access_points: u8,

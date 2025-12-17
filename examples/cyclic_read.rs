@@ -1,19 +1,20 @@
 use slmp::{CPU, DataType, Device, DeviceType, MonitorDevice, PollingInterval, SLMP4EConnectionProps, SLMPConnectionManager, TypedDevice};
 
-const SLMP_PROPS: SLMP4EConnectionProps = SLMP4EConnectionProps {
-    ip: "192.168.3.10",
-    port: 5007,
-    cpu: CPU::Q,
-    serial_id: 0x0001,
-    network_id: 0x00,
-    pc_id: 0xff,
-    io_id: 0x03ff,
-    area_id: 0x00,
-    cpu_timer: 0x0010,
-};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    let connection_props: SLMP4EConnectionProps = SLMP4EConnectionProps {
+        ip: String::from("192.168.3.10"),
+        port: 5007,
+        cpu: CPU::R,
+        serial_id: 0x0001,
+        network_id: 0x00,
+        pc_id: 0xff,
+        io_id: 0x03ff,
+        area_id: 0x00,
+        cpu_timer: 0x0010,
+    };
 
     let manager = SLMPConnectionManager::new();
 
@@ -25,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     };
 
-    manager.connect(SLMP_PROPS, cyclic_task).await?;
+    manager.connect(&connection_props, cyclic_task).await?;
 
     let target_devices = [
         MonitorDevice {
@@ -57,11 +58,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
         },
     ];
-    manager.register_monitor_targets(SLMP_PROPS, &target_devices).await?;
+    manager.register_monitor_targets(&connection_props, &target_devices).await?;
 
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-    manager.disconnect(SLMP_PROPS).await?;
+    manager.disconnect(&connection_props).await?;
 
     Ok(())
 }

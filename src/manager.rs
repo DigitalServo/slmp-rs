@@ -115,7 +115,7 @@ impl SLMPConnectionManager {
         }
     }
 
-    pub async fn connect<T, F, Fut>(&self, connection_props: SLMP4EConnectionProps, cyclic_task: F) -> std::io::Result<()>
+    pub async fn connect<'a, T, F, Fut>(&self, connection_props: &'a SLMP4EConnectionProps, cyclic_task: F) -> std::io::Result<()>
         where 
             F: Fn(Vec<PLCData>) -> Fut + std::marker::Send + 'static,
             Fut: std::future::Future<Output = std::io::Result<T>> + std::marker::Send,
@@ -125,7 +125,7 @@ impl SLMPConnectionManager {
         // Once close a channel if exist
         self.disconnect(connection_props).await?;
 
-        let client = SLMPClient::new(connection_props);
+        let client = SLMPClient::new(connection_props.clone());
         client.connect().await?;
 
         let mut worker = SLMPWorker::new(Arc::new(tokio::sync::Mutex::new(client)));
@@ -203,7 +203,7 @@ impl SLMPConnectionManager {
         Ok(())
     }
 
-    pub async fn disconnect(&self, connection_props: SLMP4EConnectionProps) -> std::io::Result<()> {
+    pub async fn disconnect<'a>(&self, connection_props: &'a SLMP4EConnectionProps) -> std::io::Result<()> {
         let socket_addr: SocketAddr = SocketAddr::try_from(connection_props)?;
 
         let mut map = self.connections.lock().await;
@@ -224,7 +224,7 @@ impl SLMPConnectionManager {
         }
     }
 
-     pub async fn register_monitor_targets<'a>(&self, connection_props: SLMP4EConnectionProps, targets: &'a [MonitorDevice]) -> std::io::Result<()> {
+     pub async fn register_monitor_targets<'a>(&self, connection_props: &'a SLMP4EConnectionProps, targets: &'a [MonitorDevice]) -> std::io::Result<()> {
         let socket_addr: SocketAddr = SocketAddr::try_from(connection_props)?;
 
         let map = self.connections.lock().await;
@@ -250,7 +250,7 @@ impl SLMPConnectionManager {
             .collect()
     }
 
-    pub async fn operate_worker<T, F, Fut>(&self, connection_props: SLMP4EConnectionProps, task: F) -> std::io::Result<T>
+    pub async fn operate_worker<'a, T, F, Fut>(&self, connection_props: &'a SLMP4EConnectionProps, task: F) -> std::io::Result<T>
         where
             F: FnOnce(Arc<Mutex<SLMPClient>>) -> Fut,
             Fut: std::future::Future<Output = std::io::Result<T>>,

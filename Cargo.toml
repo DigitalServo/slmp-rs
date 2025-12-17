@@ -3,7 +3,7 @@ name = "slmp"
 license = "MIT"
 authors = ["DigitalServo"]
 description = "Library for Seamless Message Protocol (SLMP)　communication"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 
 

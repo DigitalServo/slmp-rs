@@ -3,8 +3,8 @@ use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 
 const COMMAND_BULK_READ: u16 = 0x0401;
 
-pub struct SLMPBulkReadQuery {
-    pub connection_props: SLMP4EConnectionProps,
+pub struct SLMPBulkReadQuery<'a> {
+    pub connection_props: &'a SLMP4EConnectionProps,
     pub start_device: Device,
     pub device_num: usize,
     pub data_type: DataType
@@ -18,7 +18,7 @@ impl std::ops::Deref for SLMPBulkReadCommand {
     }
 }
 
-impl TryFrom<SLMPBulkReadQuery> for SLMPBulkReadCommand {
+impl<'a> TryFrom<SLMPBulkReadQuery<'a>> for SLMPBulkReadCommand {
     type Error = std::io::Error;
     fn try_from(value: SLMPBulkReadQuery) -> Result<Self, Self::Error> {
         let cmd = construct_frame(value)?;

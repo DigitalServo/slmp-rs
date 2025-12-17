@@ -1,20 +1,21 @@
 use slmp::*;
 
-const SLMP_PROPS: SLMP4EConnectionProps = SLMP4EConnectionProps {
-    ip: "192.168.3.10",
-    port: 5007,
-    cpu: CPU::R,
-    serial_id: 0x0001,
-    network_id: 0x00,
-    pc_id: 0xff,
-    io_id: 0x03ff,
-    area_id: 0x00,
-    cpu_timer: 0x0010,
-};
-
 #[tokio::main]
 async fn main() {
-    let mut client = SLMPClient::new(SLMP_PROPS);
+    
+    let connection_props: SLMP4EConnectionProps = SLMP4EConnectionProps {
+        ip: String::from("192.168.3.10"),
+        port: 5007,
+        cpu: CPU::R,
+        serial_id: 0x0001,
+        network_id: 0x00,
+        pc_id: 0xff,
+        io_id: 0x03ff,
+        area_id: 0x00,
+        cpu_timer: 0x0010,
+    };
+
+    let mut client = SLMPClient::new(connection_props);
     client.connect().await.unwrap();
 
     // Word data

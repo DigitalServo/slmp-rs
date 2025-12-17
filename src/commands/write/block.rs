@@ -4,7 +4,7 @@ use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 const COMMAND_BLOCK_WRITE: u16 = 0x1406;
 
 pub struct SLMPBlockWriteQuery<'a> {
-    pub connection_props: SLMP4EConnectionProps,
+    pub connection_props: &'a SLMP4EConnectionProps,
     pub sorted_data: &'a [BlockedDeviceData<'a>],
     pub word_access_points: u8,
     pub bit_access_points: u8,

@@ -134,9 +134,9 @@ impl TypedData {
 }
 
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SLMP4EConnectionProps {
-    pub ip: &'static str,
+    pub ip: String,
     pub port : u16,
     pub cpu: CPU,
     pub serial_id: u16,
@@ -147,9 +147,9 @@ pub struct SLMP4EConnectionProps {
     pub cpu_timer: u16,
 }
 
-impl TryFrom<SLMP4EConnectionProps> for SocketAddr {
+impl<'a> TryFrom<&'a SLMP4EConnectionProps> for SocketAddr {
     type Error = std::io::Error;
-    fn try_from(value: SLMP4EConnectionProps) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a SLMP4EConnectionProps) -> Result<Self, Self::Error> {
         let ip: IpAddr = value.ip.parse::<IpAddr>()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
         let port: u16 = value.port;
@@ -229,7 +229,7 @@ impl SLMPClient {
     pub async fn connect(&self) -> std::io::Result<()> {
         self.close().await;
         
-        let addr: (&str, u16) = (self.connection_props.ip, self.connection_props.port);
+        let addr: (&str, u16) = (&self.connection_props.ip, self.connection_props.port);
         let socket_addr: SocketAddr = addr
             .to_socket_addrs()?
             .next()
@@ -311,7 +311,7 @@ impl SLMPClient {
     pub async fn bulk_write<'a>(&mut self, start_device: Device, data: &'a [TypedData]) -> std::io::Result<()>
     {
         let query = SLMPBulkWriteQuery {
-            connection_props: self.connection_props,
+            connection_props: &self.connection_props,
             start_device,
             data,
         };
@@ -335,7 +335,7 @@ impl SLMPClient {
         let double_word_access_points: u8 = sorted_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::DoubleWord).count() as u8;
         
         let query = SLMPRandomWriteQuery {
-            connection_props: self.connection_props,
+            connection_props: &self.connection_props,
             sorted_data: &sorted_data,
             bit_access_points,
             single_word_access_points,
@@ -355,7 +355,7 @@ impl SLMPClient {
         let bit_access_points: u8 = sorted_data.iter().filter(|x| x.access_type == AccessType::Bit).count() as u8;
         
         let query = SLMPBlockWriteQuery {
-            connection_props: self.connection_props,
+            connection_props: &self.connection_props,
             sorted_data: &sorted_data,
             word_access_points,
             bit_access_points
@@ -368,7 +368,7 @@ impl SLMPClient {
     pub async fn bulk_read(&mut self, start_device: Device, device_num: usize, data_type: DataType) ->  std::io::Result<Vec<DeviceData>> 
     {
         let query = SLMPBulkReadQuery {
-            connection_props: self.connection_props,
+            connection_props: &self.connection_props,
             start_device,
             device_num,
             data_type,
@@ -431,7 +431,7 @@ impl SLMPClient {
         let single_word_data_byte_len: usize = single_word_access_points as usize * SINGLE_WORD_BYTELEN;
 
         let query = SLMPRandomReadQuery {
-            connection_props: self.connection_props,
+            connection_props: &self.connection_props,
             sorted_devices: &sorted_devices,
             single_word_access_points,
             double_word_access_points,
@@ -479,7 +479,7 @@ impl SLMPClient {
         let bit_access_points: u8 = sorted_block.iter().filter(|x| x.access_type == AccessType::Bit).count() as u8;
 
         let query = SLMPBlockReadQuery {
-            connection_props: self.connection_props,
+            connection_props: &self.connection_props,
             sorted_block: &sorted_block,
             word_access_points,
             bit_access_points,

@@ -4,7 +4,7 @@ use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 const COMMAND_BULK_WRITE: u16 = 0x1401;
 
 pub struct SLMPBulkWriteQuery<'a> {
-    pub connection_props: SLMP4EConnectionProps,
+    pub connection_props: &'a SLMP4EConnectionProps,
     pub start_device: Device,
     pub data: &'a [TypedData],
 }
