@@ -1,0 +1,12 @@
+[package]
+name = "slmp"
+license = "MIT"
+authors = ["DigitalServo"]
+description = "Library for Seamless Message Protocol (SLMP)　communication"
+version = "0.1.4"
+edition = "2024"
+
+
+[dependencies]
+tokio = { version = "1.48.0", features = ["full"] }
+tokio-util = "0.7.17"
