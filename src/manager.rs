@@ -22,13 +22,13 @@ const LOOP_PERIOD_MS: usize = 5_000;
 const LOOP_CNT_INIT: usize = 0;
 const LOOP_CNT_MAX: usize = LOOP_PERIOD_MS / MINUMUM_POLLING_PERIOD_MS as usize - 1;
 
-#[derive(Clone, Copy, PartialEq, PartialOrd, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct PLCData {
     pub socket_addr: SocketAddr,
     pub data: DeviceData,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum PollingInterval {
     /// 100 ms
     Fast,
@@ -40,12 +40,13 @@ pub enum PollingInterval {
     Watch
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct MonitorDevice {
     pub inverval: PollingInterval,
     pub device: TypedDevice,
 }
 
+#[derive(Clone)]
 struct MonitorDevices {
     fast: Vec<TypedDevice>,
     medium: Vec<TypedDevice>,

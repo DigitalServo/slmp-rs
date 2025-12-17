@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 mod commands;
 mod device;
 mod manager;
@@ -37,11 +39,11 @@ macro_rules! check {
     };
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum CPU {A, Q, R, F, L}
 
 /// Available data type for SLMP communication.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum DataType {
     Bool = 1,
     U16 = 2,
@@ -76,7 +78,7 @@ impl DataType {
 
 /// Available typed-data for SLMP communication.
 /// It is used for all of write requests.
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum TypedData {
     Bool(bool),
     U16(u16),
@@ -132,7 +134,7 @@ impl TypedData {
 }
 
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SLMP4EConnectionProps {
     pub ip: &'static str,
     pub port : u16,
@@ -153,15 +155,6 @@ impl TryFrom<SLMP4EConnectionProps> for SocketAddr {
         let port: u16 = value.port;
         Ok(SocketAddr::new(ip, port))
     }
-}
-
-#[derive(Clone)]
-pub struct SLMPClient {
-    connection_props: SLMP4EConnectionProps,
-    stream: Arc<Mutex<Option<TcpStream>>>,
-    send_timeout: Duration,
-    recv_timeout: Duration,
-    buffer: [u8; BUFSIZE],
 }
 
 impl SLMP4EConnectionProps {
@@ -194,6 +187,15 @@ impl SLMP4EConnectionProps {
         ]
 
     }
+}
+
+#[derive(Clone)]
+pub struct SLMPClient {
+    connection_props: SLMP4EConnectionProps,
+    stream: Arc<Mutex<Option<TcpStream>>>,
+    send_timeout: Duration,
+    recv_timeout: Duration,
+    buffer: [u8; BUFSIZE],
 }
 
 impl SLMPClient {
