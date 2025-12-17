@@ -122,8 +122,10 @@ impl SLMPConnectionManager {
     {
         let socket_addr: SocketAddr = SocketAddr::try_from(connection_props)?;
 
-        // Once close a channel if exist
-        self.disconnect(connection_props).await?;
+        // Once close a channel if exist and then wait
+        if self.disconnect(connection_props).await? == true {
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        };
 
         let client = SLMPClient::new(connection_props.clone());
         client.connect().await?;
@@ -203,7 +205,7 @@ impl SLMPConnectionManager {
         Ok(())
     }
 
-    pub async fn disconnect<'a>(&self, connection_props: &'a SLMP4EConnectionProps) -> std::io::Result<()> {
+    pub async fn disconnect<'a>(&self, connection_props: &'a SLMP4EConnectionProps) -> std::io::Result<bool> {
         let socket_addr: SocketAddr = SocketAddr::try_from(connection_props)?;
 
         let mut map = self.connections.lock().await;
@@ -212,9 +214,10 @@ impl SLMPConnectionManager {
             let worker = entry.get();
             worker.close().await;
             entry.remove();
+            Ok(true)
+        } else {
+            Ok(false)
         }
-
-        Ok(())
     }
 
     pub async fn clear(&self) {
