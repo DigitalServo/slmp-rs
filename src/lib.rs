@@ -18,7 +18,7 @@ use device::DeviceSize;
 
 // Public
 pub use device::{AccessType, Device, DeviceType, DeviceData, DeviceBlock, BlockedDeviceData, TypedDevice};
-pub use manager::{SLMPConnectionManager, SLMPWorker, MonitorDevice, PLCData, PollingInterval};
+pub use manager::{SLMPConnectionManager, SLMPWorker, MonitorDevice, MonitorRequest, MonitoredDevice, PLCData, PollingInterval};
 
 // Constants
 const BUFSIZE: usize = 1024;

@@ -1,4 +1,4 @@
-use slmp::{CPU, DataType, Device, DeviceType, MonitorDevice, PollingInterval, SLMP4EConnectionProps, SLMPConnectionManager, TypedDevice};
+use slmp::{CPU, DataType, Device, DeviceType, MonitorDevice, MonitorRequest, PollingInterval, SLMP4EConnectionProps, SLMPConnectionManager, TypedDevice};
 
 
 #[tokio::main]
@@ -29,36 +29,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     manager.connect(&connection_props, cyclic_task).await?;
 
     let target_devices = [
-        MonitorDevice {
-            interval: PollingInterval::Fast,
-            device: TypedDevice {
-                device: Device { device_type: DeviceType::D, address: 4001 },
-                data_type: DataType::U16
-            },
+        MonitorRequest {
+            connection_props: &connection_props,
+            monitor_device: MonitorDevice {
+                interval: PollingInterval::Fast,
+                typed_device: TypedDevice {
+                    device: Device { device_type: DeviceType::D, address: 4001 },
+                    data_type: DataType::U16
+                },
+            }
         },
-        MonitorDevice {
-            interval: PollingInterval::Slow,
-            device: TypedDevice {
-                device: Device { device_type: DeviceType::D, address: 4005 },
-                data_type: DataType::U16
-            },
+        MonitorRequest {
+            connection_props: &connection_props,
+            monitor_device: MonitorDevice {
+                interval: PollingInterval::Fast,
+                typed_device: TypedDevice {
+                    device: Device { device_type: DeviceType::D, address: 4002 },
+                    data_type: DataType::U16
+                },
+            }
         },
-        MonitorDevice {
-            interval: PollingInterval::Meduim,
-            device: TypedDevice {
-                device: Device { device_type: DeviceType::D, address: 4006 },
-                data_type: DataType::U16
-            },
-        },
-        MonitorDevice {
-            interval: PollingInterval::Meduim,
-            device: TypedDevice {
-                device: Device { device_type: DeviceType::D, address: 4007 },
-                data_type: DataType::U16
-            },
+        MonitorRequest {
+            connection_props: &connection_props,
+            monitor_device: MonitorDevice {
+                interval: PollingInterval::Fast,
+                typed_device: TypedDevice {
+                    device: Device { device_type: DeviceType::D, address: 4003 },
+                    data_type: DataType::U16
+                },
+            }
         },
     ];
-    manager.register_monitor_targets(&connection_props, &target_devices).await?;
+    manager.register_monitor_targets(&target_devices).await?;
 
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 

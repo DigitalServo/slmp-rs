@@ -1,4 +1,4 @@
-use std::collections::hash_map::Entry;
+use std::collections::{HashSet, hash_map::Entry};
 use std::sync::Arc;
 use std::net::SocketAddr;
 use std::time::SystemTime;
@@ -46,18 +46,43 @@ pub enum PollingInterval {
 #[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
 pub struct MonitorDevice {
     pub interval: PollingInterval,
-    pub device: TypedDevice,
+    pub typed_device: TypedDevice,
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
+pub struct MonitorRequest<'a> {
+    pub connection_props: &'a SLMP4EConnectionProps,
+    pub monitor_device: MonitorDevice
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
+pub struct MonitoredDevice {
+    pub socket_addr: SocketAddr,
+    pub monitor_device: MonitorDevice
+}
+
+impl<'a> TryFrom<&MonitorRequest<'a>> for MonitoredDevice {
+    type Error = std::io::Error;
+    fn try_from(value: &MonitorRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            socket_addr: SocketAddr::try_from(value.connection_props)?,
+            monitor_device: value.monitor_device
+        })
+    }
 }
 
 #[derive(Clone)]
-struct MonitorDevices {
+struct MonitorDeviceList {
     fast: Vec<TypedDevice>,
     medium: Vec<TypedDevice>,
     slow: Vec<TypedDevice>,
     watch: Vec<TypedDevice>,
 }
 
-impl MonitorDevices {
+impl MonitorDeviceList {
     pub fn new() -> Self {
         Self {
             fast: Vec::with_capacity(DATA_REQUEST_SIZE),
@@ -72,7 +97,7 @@ pub struct SLMPWorker {
     client: SharedResource<SLMPClient>,
     connected_at: SystemTime,
     monitor_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
-    monitor_target: Arc<RwLock<MonitorDevices>>,
+    monitor_target: Arc<RwLock<MonitorDeviceList>>,
     sender_targets: Arc<Mutex<Option<UnboundedSender<Vec<MonitorDevice>>>>>,
     cancel_token: CancellationToken,
 }
@@ -83,7 +108,7 @@ impl SLMPWorker {
             client,
             connected_at: SystemTime::now(),
             monitor_handle: Arc::new(Mutex::new(None)),
-            monitor_target: Arc::new(RwLock::new(MonitorDevices::new())),
+            monitor_target: Arc::new(RwLock::new(MonitorDeviceList::new())),
             sender_targets: Arc::new(Mutex::new(None)),
             cancel_token: CancellationToken::new(),
         }
@@ -155,10 +180,10 @@ impl SLMPConnectionManager {
 
                         Some(targets) = receiver_targets.recv() => {
                             let mut monitor_target = monitor_target.write().await;
-                            monitor_target.fast = targets.iter().filter(|&x| x.interval == PollingInterval::Fast).map(|x| x.device).collect();
-                            monitor_target.medium = targets.iter().filter(|&x| x.interval == PollingInterval::Meduim).map(|x| x.device).collect();
-                            monitor_target.slow = targets.iter().filter(|&x| x.interval == PollingInterval::Slow).map(|x| x.device).collect();
-                            monitor_target.watch = targets.iter().filter(|&x| x.interval == PollingInterval::Watch).map(|x| x.device).collect();
+                            monitor_target.fast = targets.iter().filter(|&x| x.interval == PollingInterval::Fast).map(|x| x.typed_device).collect();
+                            monitor_target.medium = targets.iter().filter(|&x| x.interval == PollingInterval::Meduim).map(|x| x.typed_device).collect();
+                            monitor_target.slow = targets.iter().filter(|&x| x.interval == PollingInterval::Slow).map(|x| x.typed_device).collect();
+                            monitor_target.watch = targets.iter().filter(|&x| x.interval == PollingInterval::Watch).map(|x| x.typed_device).collect();
                         }
 
                         _ = interval.tick() => {
@@ -230,21 +255,48 @@ impl SLMPConnectionManager {
         }
     }
 
-     pub async fn register_monitor_targets<'a>(&self, connection_props: &'a SLMP4EConnectionProps, targets: &'a [MonitorDevice]) -> std::io::Result<()> {
-        let socket_addr: SocketAddr = SocketAddr::try_from(connection_props)?;
+     pub async fn register_monitor_targets<'a>(&self, targets: &'a [MonitorRequest<'a>]) -> std::io::Result<Vec<MonitoredDevice>> {
+
+        let mut socket_addrs: Vec<SocketAddr> = targets
+            .iter()
+            .map(|x| SocketAddr::try_from(x.connection_props))
+            .collect::<Result<Vec<SocketAddr>, std::io::Error>>()?;
+
+        let mut seen = HashSet::new();
+        socket_addrs.retain(|item| seen.insert(*item));
 
         let map = self.connections.lock().await;
-        let worker = map.get(&socket_addr)
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::AddrNotAvailable, "Connection not found"))?
-            .clone();
 
-        let sender = worker.sender_targets.lock().await;
+        for socket_addr in &socket_addrs {
+            if !map.contains_key(socket_addr) {
+                return Err(std::io::Error::new(std::io::ErrorKind::AddrNotAvailable, "Connection not found"))
+            }
+        }
 
-        if let Some(sender) = sender.clone() {
-            let _ = sender.send(targets.to_vec());
-        };
+        for socket_addr in &socket_addrs {
+            let worker = map.get(&socket_addr)
+                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::AddrNotAvailable, "Connection not found"))?
+                .clone();
 
-        Ok(())
+            let targets: Vec<MonitorDevice> = targets
+                .iter()
+                .filter(|&x| if let Ok(x) = SocketAddr::try_from(x.connection_props) { &x == socket_addr } else { false })
+                .map(|x| x.monitor_device)
+                .collect();
+
+            let sender = worker.sender_targets.lock().await;
+
+            if let Some(sender) = sender.clone() {
+                let _ = sender.send(targets.to_vec());
+            };
+        }
+
+        let monitored_devices: Vec<MonitoredDevice> = targets
+            .iter()
+            .map(|x| MonitoredDevice::try_from(x))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(monitored_devices)
     }   
 
     pub async fn get_connections_with_elapsed_time(&self) -> HashMap<SocketAddr, std::time::Duration> {
