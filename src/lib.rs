@@ -40,7 +40,6 @@ macro_rules! check {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub enum CPU {A, Q, R, F, L}
 
 /// Available data type for SLMP communication.

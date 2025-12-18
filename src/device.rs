@@ -34,7 +34,6 @@ impl From<DeviceSize> for u16 {
 /// 
 /// Available devices: X, Y, M, L, F, V, B, D, W, S, Z, R, TS, TC, TN, SS, SC, SN, CS, CC, CN, SB, SD, SM, SW, DX, DY, ZR,
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub enum DeviceType {
     X,
     Y,
