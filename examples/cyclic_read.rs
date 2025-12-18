@@ -30,28 +30,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let target_devices = [
         MonitorDevice {
-            inverval: PollingInterval::Fast,
+            interval: PollingInterval::Fast,
             device: TypedDevice {
                 device: Device { device_type: DeviceType::D, address: 4001 },
                 data_type: DataType::U16
             },
         },
         MonitorDevice {
-            inverval: PollingInterval::Slow,
+            interval: PollingInterval::Slow,
             device: TypedDevice {
                 device: Device { device_type: DeviceType::D, address: 4005 },
                 data_type: DataType::U16
             },
         },
         MonitorDevice {
-            inverval: PollingInterval::Meduim,
+            interval: PollingInterval::Meduim,
             device: TypedDevice {
                 device: Device { device_type: DeviceType::D, address: 4006 },
                 data_type: DataType::U16
             },
         },
         MonitorDevice {
-            inverval: PollingInterval::Meduim,
+            interval: PollingInterval::Meduim,
             device: TypedDevice {
                 device: Device { device_type: DeviceType::D, address: 4007 },
                 data_type: DataType::U16

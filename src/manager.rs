@@ -45,7 +45,7 @@ pub enum PollingInterval {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 #[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub struct MonitorDevice {
-    pub inverval: PollingInterval,
+    pub interval: PollingInterval,
     pub device: TypedDevice,
 }
 
@@ -155,10 +155,10 @@ impl SLMPConnectionManager {
 
                         Some(targets) = receiver_targets.recv() => {
                             let mut monitor_target = monitor_target.write().await;
-                            monitor_target.fast = targets.iter().filter(|&x| x.inverval == PollingInterval::Fast).map(|x| x.device).collect();
-                            monitor_target.medium = targets.iter().filter(|&x| x.inverval == PollingInterval::Meduim).map(|x| x.device).collect();
-                            monitor_target.slow = targets.iter().filter(|&x| x.inverval == PollingInterval::Slow).map(|x| x.device).collect();
-                            monitor_target.watch = targets.iter().filter(|&x| x.inverval == PollingInterval::Watch).map(|x| x.device).collect();
+                            monitor_target.fast = targets.iter().filter(|&x| x.interval == PollingInterval::Fast).map(|x| x.device).collect();
+                            monitor_target.medium = targets.iter().filter(|&x| x.interval == PollingInterval::Meduim).map(|x| x.device).collect();
+                            monitor_target.slow = targets.iter().filter(|&x| x.interval == PollingInterval::Slow).map(|x| x.device).collect();
+                            monitor_target.watch = targets.iter().filter(|&x| x.interval == PollingInterval::Watch).map(|x| x.device).collect();
                         }
 
                         _ = interval.tick() => {
