@@ -23,12 +23,14 @@ const LOOP_CNT_INIT: usize = 0;
 const LOOP_CNT_MAX: usize = LOOP_PERIOD_MS / MINUMUM_POLLING_PERIOD_MS as usize - 1;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub struct PLCData {
     pub socket_addr: SocketAddr,
     pub device_data: DeviceData,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub enum PollingInterval {
     /// 100 ms
     Fast,
@@ -41,6 +43,7 @@ pub enum PollingInterval {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub struct MonitorDevice {
     pub inverval: PollingInterval,
     pub device: TypedDevice,

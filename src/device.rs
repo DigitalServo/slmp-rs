@@ -2,12 +2,14 @@ use serde::{Deserialize, Serialize};
 use crate::{CPU, DataType, TypedData};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub enum AccessType {
     Bit = 2,
     Word = 1,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub(crate) enum DeviceSize {
     Bit = 1,
     SingleWord = 2,
@@ -32,6 +34,7 @@ impl From<DeviceSize> for u16 {
 /// 
 /// Available devices: X, Y, M, L, F, V, B, D, W, S, Z, R, TS, TC, TN, SS, SC, SN, CS, CC, CN, SB, SD, SM, SW, DX, DY, ZR,
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub enum DeviceType {
     X,
     Y,
@@ -101,6 +104,7 @@ impl DeviceType {
 
 /// It works as a device pointer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub struct Device {
     pub device_type: DeviceType,
     pub address: usize,
@@ -132,6 +136,7 @@ impl Device {
 /// It is used for random-read request.
 /// Results of random-read are typed as requested.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub struct TypedDevice {
     pub device: Device,
     pub data_type: DataType,
@@ -141,6 +146,7 @@ pub struct TypedDevice {
 /// It is used for block-read request.
 /// Multiple blocks are acceptable for block-read request.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub struct DeviceBlock {
     pub access_type: AccessType,
     pub start_device: Device,
@@ -152,6 +158,7 @@ pub struct DeviceBlock {
 /// 
 /// Results of the read requets are unified in the form of this struct.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub struct DeviceData {
     pub device: Device,
     pub data: TypedData,
@@ -160,6 +167,7 @@ pub struct DeviceData {
 /// Blocked data used for block-write request.
 /// Multiple blocks are acceptable for block-write request.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize)]
+#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
 pub struct BlockedDeviceData<'a> {
     pub access_type: AccessType,
     pub start_device: Device,
