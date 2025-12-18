@@ -79,6 +79,7 @@ impl DataType {
 /// Available typed-data for SLMP communication.
 /// It is used for all of write requests.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "value")]
 pub enum TypedData {
     Bool(bool),
     U16(u16),

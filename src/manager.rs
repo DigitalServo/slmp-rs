@@ -25,7 +25,7 @@ const LOOP_CNT_MAX: usize = LOOP_PERIOD_MS / MINUMUM_POLLING_PERIOD_MS as usize 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct PLCData {
     pub socket_addr: SocketAddr,
-    pub data: DeviceData,
+    pub device_data: DeviceData,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -184,7 +184,7 @@ impl SLMPConnectionManager {
                                     client.random_read(&request_devices).await
                                 };
                                 if let Ok(values) = ret {
-                                    let data: Vec<PLCData> = values.clone().into_iter().map(|data| PLCData {socket_addr, data} ).collect();
+                                    let data: Vec<PLCData> = values.clone().into_iter().map(|device_data| PLCData {socket_addr, device_data} ).collect();
                                     let _ = cyclic_task(data).await;
                                 }
                             }
