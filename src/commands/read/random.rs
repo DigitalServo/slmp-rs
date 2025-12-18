@@ -38,10 +38,10 @@ fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
         _ => return Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
     };
 
-    let device_addr_bytelen: u8 = Device::addr_code_len(query.connection_props.cpu)?;
-    let total_access_points: u8 = query.single_word_access_points + query.double_word_access_points;
+    let device_addr_bytelen: usize = Device::addr_code_len(query.connection_props.cpu)? as usize;
+    let total_access_points: usize = (query.single_word_access_points + query.double_word_access_points) as usize;
 
-    let data_packet_len: usize = ACCESS_POINTS_BYTELEN + (total_access_points * device_addr_bytelen) as usize;
+    let data_packet_len: usize = ACCESS_POINTS_BYTELEN + (total_access_points * device_addr_bytelen);
     let mut data_packet: Vec<u8> = Vec::with_capacity(data_packet_len);
 
     data_packet.extend([query.single_word_access_points, query.double_word_access_points,]);
