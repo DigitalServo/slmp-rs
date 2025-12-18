@@ -3,12 +3,12 @@ name = "slmp"
 license = "MIT"
 authors = ["DigitalServo"]
 description = "Library for Seamless Message Protocol (SLMP)　communication"
-version = "0.1.10"
+version = "0.1.11"
 edition = "2024"
 
 [features]
 default = []
-serde-camel = []
+json-api = []
 
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }

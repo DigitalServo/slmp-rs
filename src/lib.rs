@@ -40,11 +40,12 @@ macro_rules! check {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
 pub enum CPU {A, Q, R, F, L}
 
 /// Available data type for SLMP communication.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
 pub enum DataType {
     Bool = 1,
     U16 = 2,
@@ -80,7 +81,7 @@ impl DataType {
 /// Available typed-data for SLMP communication.
 /// It is used for all of write requests.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
 #[serde(tag = "type", content = "value")]
 pub enum TypedData {
     Bool(bool),
@@ -138,7 +139,7 @@ impl TypedData {
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[cfg_attr(feature = "serde-camel", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
 pub struct SLMP4EConnectionProps {
     pub ip: String,
     pub port : u16,
