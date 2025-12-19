@@ -20,10 +20,10 @@ async fn main() {
 
     // Word data
     let devices = [
-        Device{device_type: DeviceType::D, address: 20},
         Device{device_type: DeviceType::D, address: 25},
-        Device{device_type: DeviceType::D, address: 30},
+        Device{device_type: DeviceType::D, address: 20},
         Device{device_type: DeviceType::D, address: 35},
+        Device{device_type: DeviceType::D, address: 30},
     ];
 
     let data = [

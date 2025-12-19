@@ -46,7 +46,7 @@ fn construct_frame (query: SLMPMonitorRegisterQuery) -> std::io::Result<Vec<u8>>
 
     data_packet.extend([query.monitor_list.single_word_access_points, query.monitor_list.double_word_access_points,]);
     for device in &query.monitor_list.sorted_devices {
-        data_packet.extend(device.device.serialize(query.connection_props.cpu)?);
+        data_packet.extend(device.1.device.serialize(query.connection_props.cpu)?);
     }
 
     let command_len: u16 = (COMMAND_PREFIX_BYTELEN + data_packet_len) as u16;
