@@ -13,57 +13,6 @@ use tokio::task::JoinHandle;
 type SharedResource<T> = Arc<Mutex<T>>;
 type ConnectionMap = HashMap<SocketAddr, Arc<SLMPWorker>>;
 
-const DATA_REQUEST_SIZE: usize = 256;
-
-const MINUMUM_POLLING_PERIOD_MS: u64 = 100;
-const MINUMUM_POLLING_PERIOD: tokio::time::Duration = tokio::time::Duration::from_millis(MINUMUM_POLLING_PERIOD_MS);
-const LOOP_PERIOD_MS: usize = 5_000;
-
-const LOOP_CNT_INIT: usize = 0;
-const LOOP_CNT_MAX: usize = LOOP_PERIOD_MS / MINUMUM_POLLING_PERIOD_MS as usize - 1;
-
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
-pub struct PLCData {
-    pub socket_addr: SocketAddr,
-    pub device_data: DeviceData,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
-pub enum PollingInterval {
-    /// 100 ms
-    Fast,
-    /// 500 ms
-    Meduim,
-    /// 1s
-    Slow,
-    /// 5s
-    Watch
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
-pub struct MonitorDevice {
-    pub interval: PollingInterval,
-    pub typed_device: TypedDevice,
-}
-
-
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
-pub struct MonitorRequest<'a> {
-    pub connection_props: &'a SLMP4EConnectionProps,
-    pub monitor_device: MonitorDevice
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
-pub struct MonitoredDevice {
-    pub socket_addr: SocketAddr,
-    pub monitor_device: MonitorDevice
-}
-
 impl<'a> TryFrom<&MonitorRequest<'a>> for MonitoredDevice {
     type Error = std::io::Error;
     fn try_from(value: &MonitorRequest) -> Result<Self, Self::Error> {
@@ -74,31 +23,13 @@ impl<'a> TryFrom<&MonitorRequest<'a>> for MonitoredDevice {
     }
 }
 
-#[derive(Clone)]
-struct MonitorDeviceList {
-    fast: Vec<TypedDevice>,
-    medium: Vec<TypedDevice>,
-    slow: Vec<TypedDevice>,
-    watch: Vec<TypedDevice>,
-}
-
-impl MonitorDeviceList {
-    pub fn new() -> Self {
-        Self {
-            fast: Vec::with_capacity(DATA_REQUEST_SIZE),
-            medium: Vec::with_capacity(DATA_REQUEST_SIZE),
-            slow: Vec::with_capacity(DATA_REQUEST_SIZE),
-            watch: Vec::with_capacity(DATA_REQUEST_SIZE),
-        }
-    }
-}
 
 pub struct SLMPWorker {
     client: SharedResource<SLMPClient>,
     connected_at: SystemTime,
     monitor_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
-    monitor_target: Arc<RwLock<MonitorDeviceList>>,
-    sender_targets: Arc<Mutex<Option<UnboundedSender<Vec<MonitorDevice>>>>>,
+    monitor_target: Arc<RwLock<MonitorList>>,
+    sender_targets: Arc<Mutex<Option<UnboundedSender<Vec<TypedDevice>>>>>,
     cancel_token: CancellationToken,
 }
 
@@ -108,7 +39,7 @@ impl SLMPWorker {
             client,
             connected_at: SystemTime::now(),
             monitor_handle: Arc::new(Mutex::new(None)),
-            monitor_target: Arc::new(RwLock::new(MonitorDeviceList::new())),
+            monitor_target: Arc::new(RwLock::new(MonitorList::new())),
             sender_targets: Arc::new(Mutex::new(None)),
             cancel_token: CancellationToken::new(),
         }
@@ -143,7 +74,7 @@ impl SLMPConnectionManager {
         }
     }
 
-    pub async fn connect<'a, T, F, Fut>(&self, connection_props: &'a SLMP4EConnectionProps, cyclic_task: F) -> std::io::Result<()>
+    pub async fn connect<'a, T, F, Fut>(&self, connection_props: &'a SLMP4EConnectionProps, cyclic_task: F, cycle_ms: u64) -> std::io::Result<()>
         where 
             F: Fn(Vec<PLCData>) -> Fut + std::marker::Send + 'static,
             Fut: std::future::Future<Output = std::io::Result<T>> + std::marker::Send,
@@ -160,7 +91,7 @@ impl SLMPConnectionManager {
 
         let mut worker = SLMPWorker::new(Arc::new(tokio::sync::Mutex::new(client)));
 
-        let (sender_targets, mut receiver_targets) = unbounded_channel::<Vec<MonitorDevice>>();        
+        let (sender_targets, mut receiver_targets) = unbounded_channel::<Vec<TypedDevice>>();        
 
         let client = worker.client.clone();
         let monitor_target = worker.monitor_target.clone();
@@ -169,8 +100,7 @@ impl SLMPConnectionManager {
         let monitor_handle = {
 
             tokio::spawn(async move {
-                let mut interval = tokio::time::interval(MINUMUM_POLLING_PERIOD);
-                let mut cnt = LOOP_CNT_INIT;
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(cycle_ms));
 
                 loop {
                     tokio::select! {
@@ -179,45 +109,32 @@ impl SLMPConnectionManager {
                         }
 
                         Some(targets) = receiver_targets.recv() => {
-                            let mut monitor_target = monitor_target.write().await;
-                            monitor_target.fast = targets.iter().filter(|&x| x.interval == PollingInterval::Fast).map(|x| x.typed_device).collect();
-                            monitor_target.medium = targets.iter().filter(|&x| x.interval == PollingInterval::Meduim).map(|x| x.typed_device).collect();
-                            monitor_target.slow = targets.iter().filter(|&x| x.interval == PollingInterval::Slow).map(|x| x.typed_device).collect();
-                            monitor_target.watch = targets.iter().filter(|&x| x.interval == PollingInterval::Watch).map(|x| x.typed_device).collect();
+                            let monitor_list = {
+                                let mut client = client.lock().await;
+                                client.monitor_register(&targets).await
+                            };
+
+                            if let Ok(monitor_list) = monitor_list {
+                                let mut monitor_target = monitor_target.write().await;
+                                *monitor_target = monitor_list;
+                            }
                         }
 
                         _ = interval.tick() => {
 
                             let target_devices = monitor_target.read().await;
+                            
 
-                            let mut request_devices: Vec<TypedDevice> = Vec::with_capacity(DATA_REQUEST_SIZE * 4);
-
-                            request_devices.extend_from_slice(&target_devices.fast);
-
-                            if cnt % 5 == 0 {
-                                request_devices.extend_from_slice(&target_devices.medium);
-                            }
-
-                            if cnt % 10 == 0 {
-                                request_devices.extend_from_slice(&target_devices.slow);
-                            }
-
-                            if cnt == LOOP_CNT_MAX  {
-                                request_devices.extend_from_slice(&target_devices.watch);
-                            }
-
-                            if request_devices.len() != 0 {
+                            if target_devices.sorted_devices.len() != 0 {
                                 let ret = {
                                     let mut client = client.lock().await;
-                                    client.random_read(&request_devices).await
+                                    client.monitor_read(&target_devices).await
                                 };
                                 if let Ok(values) = ret {
                                     let data: Vec<PLCData> = values.clone().into_iter().map(|device_data| PLCData {socket_addr, device_data} ).collect();
                                     let _ = cyclic_task(data).await;
                                 }
                             }
-
-                            cnt = if cnt == LOOP_CNT_MAX { 1 } else { cnt + 1 };
                         }
                     }
                 }
@@ -255,7 +172,7 @@ impl SLMPConnectionManager {
         }
     }
 
-     pub async fn register_monitor_targets<'a>(&self, targets: &'a [MonitorRequest<'a>]) -> std::io::Result<Vec<MonitoredDevice>> {
+    pub async fn register_monitor_targets<'a>(&self, targets: &'a [MonitorRequest<'a>]) -> std::io::Result<Vec<MonitoredDevice>> {
 
         let mut socket_addrs: Vec<SocketAddr> = targets
             .iter()
@@ -278,7 +195,7 @@ impl SLMPConnectionManager {
                 .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::AddrNotAvailable, "Connection not found"))?
                 .clone();
 
-            let targets: Vec<MonitorDevice> = targets
+            let targets: Vec<TypedDevice> = targets
                 .iter()
                 .filter(|&x| if let Ok(x) = SocketAddr::try_from(x.connection_props) { &x == socket_addr } else { false })
                 .map(|x| x.monitor_device)

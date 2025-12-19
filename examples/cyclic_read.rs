@@ -1,4 +1,4 @@
-use slmp::{CPU, DataType, Device, DeviceType, MonitorDevice, MonitorRequest, PollingInterval, SLMP4EConnectionProps, SLMPConnectionManager, TypedDevice};
+use slmp::{CPU, DataType, Device, DeviceType, MonitorRequest, SLMP4EConnectionProps, SLMPConnectionManager, TypedDevice};
 
 
 #[tokio::main]
@@ -18,6 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let manager = SLMPConnectionManager::new();
 
+    let cycle_ms: u64 = 500;
     let cyclic_task = async |data| {
         for x in data {
             println!("{:?}", x);
@@ -26,37 +27,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     };
 
-    manager.connect(&connection_props, cyclic_task).await?;
+    manager.connect(&connection_props, cyclic_task, cycle_ms).await?;
 
     let target_devices = [
         MonitorRequest {
             connection_props: &connection_props,
-            monitor_device: MonitorDevice {
-                interval: PollingInterval::Fast,
-                typed_device: TypedDevice {
-                    device: Device { device_type: DeviceType::D, address: 4001 },
-                    data_type: DataType::U16
-                },
+            monitor_device: TypedDevice {
+                device: Device { device_type: DeviceType::D, address: 4001 },
+                data_type: DataType::U16    
             }
         },
         MonitorRequest {
             connection_props: &connection_props,
-            monitor_device: MonitorDevice {
-                interval: PollingInterval::Fast,
-                typed_device: TypedDevice {
-                    device: Device { device_type: DeviceType::D, address: 4002 },
-                    data_type: DataType::U16
-                },
+            monitor_device: TypedDevice {
+                device: Device { device_type: DeviceType::D, address: 4002 },
+                data_type: DataType::U16    
             }
         },
         MonitorRequest {
             connection_props: &connection_props,
-            monitor_device: MonitorDevice {
-                interval: PollingInterval::Fast,
-                typed_device: TypedDevice {
-                    device: Device { device_type: DeviceType::D, address: 4003 },
-                    data_type: DataType::U16
-                },
+            monitor_device: TypedDevice {
+                device: Device { device_type: DeviceType::D, address: 4003 },
+                data_type: DataType::U16    
             }
         },
     ];

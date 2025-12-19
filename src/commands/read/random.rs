@@ -1,13 +1,11 @@
-use crate::{CPU, Device, SLMP4EConnectionProps, TypedDevice};
+use crate::{CPU, Device, MonitorList, SLMP4EConnectionProps};
 use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 
 const COMMAND_RANDOM_READ: u16 = 0x0403;
 
 pub struct SLMPRandomReadQuery<'a>{
     pub connection_props: &'a SLMP4EConnectionProps,
-    pub sorted_devices: &'a [TypedDevice],
-    pub single_word_access_points: u8,
-    pub double_word_access_points: u8,
+    pub monitor_list: &'a MonitorList
 }
 
 pub struct SLMPRandomReadCommand(pub Vec<u8>);
@@ -39,13 +37,13 @@ fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
     };
 
     let device_addr_bytelen: usize = Device::addr_code_len(query.connection_props.cpu)? as usize;
-    let total_access_points: usize = (query.single_word_access_points + query.double_word_access_points) as usize;
+   let total_access_points: usize = (query.monitor_list.single_word_access_points + query.monitor_list.double_word_access_points) as usize;
 
     let data_packet_len: usize = ACCESS_POINTS_BYTELEN + (total_access_points * device_addr_bytelen);
     let mut data_packet: Vec<u8> = Vec::with_capacity(data_packet_len);
 
-    data_packet.extend([query.single_word_access_points, query.double_word_access_points,]);
-    for device in query.sorted_devices {
+    data_packet.extend([query.monitor_list.single_word_access_points, query.monitor_list.double_word_access_points,]);
+    for device in &query.monitor_list.sorted_devices {
         data_packet.extend(device.device.serialize(query.connection_props.cpu)?);
     }
 

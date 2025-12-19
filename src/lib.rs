@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
-
 mod commands;
+mod data;
 mod device;
 mod manager;
+
 
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
@@ -10,6 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream};
 use tokio::sync::Mutex;
 use tokio::time::{timeout, Duration};
+use serde::{Deserialize, Serialize};
 
 use commands::read::*;
 use commands::write::*;
@@ -17,8 +18,9 @@ use commands::write::*;
 use device::DeviceSize;
 
 // Public
-pub use device::{AccessType, Device, DeviceType, DeviceData, DeviceBlock, BlockedDeviceData, TypedDevice};
-pub use manager::{SLMPConnectionManager, SLMPWorker, MonitorDevice, MonitorRequest, MonitoredDevice, PLCData, PollingInterval};
+pub use data::{DataType, TypedData};
+pub use device::{AccessType, Device, DeviceType, DeviceData, DeviceBlock, BlockedDeviceData, TypedDevice, MonitorList, MonitorRequest, MonitoredDevice, PLCData};
+pub use manager::{SLMPConnectionManager, SLMPWorker};
 
 // Constants
 const BUFSIZE: usize = 1024;
@@ -42,100 +44,6 @@ macro_rules! check {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
 pub enum CPU {A, Q, R, F, L}
-
-/// Available data type for SLMP communication.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
-pub enum DataType {
-    Bool = 1,
-    U16 = 2,
-    I16 = 3,
-    U32 = 4,
-    I32 = 5,
-    F32 = 6,
-    F64 = 7,
-}
-
-impl DataType {
-    #[inline(always)]
-    const fn byte_size(&self) -> usize {
-        match self {
-            DataType::Bool => 1,
-            DataType::U16 | DataType::I16 => 2,
-            DataType::U32 | DataType::I32 | DataType::F32=> 4,
-            DataType::F64 => 8,
-        }
-    }
-
-    #[inline(always)]
-    const fn device_size(&self) -> DeviceSize {
-        match self {
-            DataType::Bool => DeviceSize::Bit,
-            DataType::U16 | DataType::I16 => DeviceSize::SingleWord,
-            DataType::U32 | DataType::I32 | DataType::F32 => DeviceSize::DoubleWord,
-            DataType::F64 => DeviceSize::QuadrupleWord,
-        }
-    }
-}
-
-/// Available typed-data for SLMP communication.
-/// It is used for all of write requests.
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
-#[serde(tag = "type", content = "value")]
-pub enum TypedData {
-    Bool(bool),
-    U16(u16),
-    I16(i16),
-    U32(u32),
-    I32(i32),
-    F32(f32),
-    F64(f64),
-}
-
-impl TypedData {
-    #[inline(always)]
-    const fn from(value: &[u8], data_type: DataType) -> Self {
-        match data_type {
-            DataType::Bool => TypedData::Bool(value[0] == 1),
-            DataType::U16 => TypedData::U16(u16::from_le_bytes([value[0], value[1]])),
-            DataType::I16 => TypedData::I16(i16::from_le_bytes([value[0], value[1]])),
-            DataType::U32 => TypedData::U32(u32::from_le_bytes([value[0], value[1], value[2], value[3]])),
-            DataType::I32 => TypedData::I32(i32::from_le_bytes([value[0], value[1], value[2], value[3]])),
-            DataType::F32 => TypedData::F32(f32::from_le_bytes([value[0], value[1], value[2], value[3]])),
-            DataType::F64 => TypedData::F64(f64::from_le_bytes([value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7]])),
-        }
-    }
-
-    #[inline(always)]
-    const fn to_bytes(&self) -> &[u8] {
-        unsafe {
-            match self {
-                TypedData::Bool(true)  => &[1, 0],
-                TypedData::Bool(false) => &[0, 0],
-                TypedData::U16(v) => std::slice::from_raw_parts(v as *const u16 as *const u8, 2),
-                TypedData::I16(v) => std::slice::from_raw_parts(v as *const i16 as *const u8, 2),
-                TypedData::U32(v) => std::slice::from_raw_parts(v as *const u32 as *const u8, 4),
-                TypedData::I32(v) => std::slice::from_raw_parts(v as *const i32 as *const u8, 4),
-                TypedData::F32(v) => std::slice::from_raw_parts(v as *const f32 as *const u8, 4),
-                TypedData::F64(v) => std::slice::from_raw_parts(v as *const f64 as *const u8, 8),
-            }
-        }
-    }
-    
-    #[inline(always)]
-    const fn get_type(&self) -> DataType {
-        match self {
-            TypedData::Bool(_) => DataType::Bool,
-            TypedData::U16(_) => DataType::U16,
-            TypedData::I16(_) => DataType::I16,
-            TypedData::U32(_) => DataType::U32,
-            TypedData::I32(_) => DataType::I32,
-            TypedData::F32(_) => DataType::F32,
-            TypedData::F64(_) => DataType::F64,
-        }
-    }
-}
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -370,7 +278,7 @@ impl SLMPClient {
         self.request_response(&cmd).await.map(|_| ())
     }
 
-    pub async fn bulk_read(&mut self, start_device: Device, device_num: usize, data_type: DataType) ->  std::io::Result<Vec<DeviceData>> 
+    pub async fn bulk_read(&mut self, start_device: Device, device_num: usize, data_type: DataType) -> std::io::Result<Vec<DeviceData>> 
     {
         let query = SLMPBulkReadQuery {
             connection_props: &self.connection_props,
@@ -408,7 +316,7 @@ impl SLMPClient {
                 for (i, data) in recv.chunks_exact(chunk_size).enumerate() {
                     ret.push(DeviceData {
                         device: Device {device_type, address: start_address + skip_address * i},
-                        data: TypedData::from(data, data_type)
+                        data: TypedData::from((data, data_type))
                     });
                 }
 
@@ -417,61 +325,21 @@ impl SLMPClient {
         }
     }
 
-    pub async fn random_read(&mut self, devices: &[TypedDevice]) ->  std::io::Result<Vec<DeviceData>> 
+    pub async fn random_read(&mut self, devices: &[TypedDevice]) -> std::io::Result<Vec<DeviceData>> 
     {
-        const SINGLE_WORD_BYTELEN: usize = 2;
-        const DOUBLE_WORD_BYTELEN: usize = 4;
-
-        let mut sorted_devices: Vec<TypedDevice> = devices.iter()
-            .filter(|x| !matches!(x.data_type, DataType::F64 | DataType::Bool))
-            .copied()
-            .collect();
-        sorted_devices.sort_by_key(|p| p.device.address);
-        sorted_devices.sort_by_key(|p| p.data_type);
-
-        let single_word_access_points: u8 = sorted_devices.iter().filter(|x| x.data_type.device_size() == DeviceSize::SingleWord).count() as u8;
-        let double_word_access_points: u8 = sorted_devices.iter().filter(|x| x.data_type.device_size() == DeviceSize::DoubleWord).count() as u8;
-        let total_access_points: usize = (single_word_access_points + double_word_access_points) as usize;
-
-        let single_word_data_byte_len: usize = single_word_access_points as usize * SINGLE_WORD_BYTELEN;
-
+        let monitor_list = MonitorList::from(devices);
         let query = SLMPRandomReadQuery {
             connection_props: &self.connection_props,
-            sorted_devices: &sorted_devices,
-            single_word_access_points,
-            double_word_access_points,
+            monitor_list: &monitor_list
         };
         let cmd: SLMPRandomReadCommand = query.try_into()?;
-
         let recv: &[u8] = &(self.request_response(&cmd).await?);
 
-        let single_word_data: &[u8] = &recv[..single_word_data_byte_len];
-        let double_word_data: &[u8] = &recv[single_word_data_byte_len..];
-
-        let mut ret: Vec<DeviceData> = Vec::with_capacity(total_access_points);
-
-        let mut i = 0;
-
-        for x in single_word_data.chunks_exact(SINGLE_WORD_BYTELEN) {
-            ret.push(DeviceData {
-                device: sorted_devices[i].device,
-                data: TypedData::from(x, sorted_devices[i].data_type),
-            });
-            i += 1;
-        }
-        for x in double_word_data.chunks_exact(DOUBLE_WORD_BYTELEN) {
-            ret.push(DeviceData {
-                device: sorted_devices[i].device,
-                data: TypedData::from(x, sorted_devices[i].data_type),
-            });
-            i += 1;
-        }
-
-        Ok(ret)
+        Ok(monitor_list.parse(&recv))
     }
 
 
-    pub async fn block_read(&mut self, device_blocks: &[DeviceBlock]) ->  std::io::Result<Vec<DeviceData>> 
+    pub async fn block_read(&mut self, device_blocks: &[DeviceBlock]) -> std::io::Result<Vec<DeviceData>> 
     {
         const WORD_RESPONSE_BYTEELEN: usize = 2;
         const BIT_RESPONSE_BYTEELEN: usize = 1;
@@ -513,7 +381,7 @@ impl SLMPClient {
                     for (i, x) in blocked_data.chunks_exact(WORD_RESPONSE_BYTEELEN).enumerate() {
                         ret.push(DeviceData{
                             device: Device {device_type, address: start_address + i},
-                            data: TypedData::from(x, DataType::U16),
+                            data: TypedData::from((x, DataType::U16)),
                         });
                     }
                 },
@@ -534,6 +402,30 @@ impl SLMPClient {
         }
 
         Ok(ret)
+    }
+
+    pub async fn monitor_register(&mut self, devices: &[TypedDevice]) -> std::io::Result<MonitorList> 
+    {
+        let monitor_list = MonitorList::from(devices);
+        let query = SLMPMonitorRegisterQuery {
+            connection_props: &self.connection_props,
+            monitor_list: &monitor_list
+        };
+        let cmd: SLMPMonitorRegisterCommand = query.try_into()?;
+        self.request_response(&cmd).await?;
+
+        Ok(monitor_list)
+    }
+
+    pub async fn monitor_read(&mut self, monitor_list: &MonitorList) -> std::io::Result<Vec<DeviceData>> 
+    {
+        let query = SLMPMonitorReadQuery {
+            connection_props: &self.connection_props
+        };
+        let cmd: SLMPMonitorReadCommand = query.try_into()?;
+        let recv: &[u8] = &(self.request_response(&cmd).await?);
+        
+        Ok(monitor_list.parse(&recv))
     }
 
 }

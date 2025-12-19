@@ -1,5 +1,7 @@
+use std::net::SocketAddr;
+
 use serde::{Deserialize, Serialize};
-use crate::{CPU, DataType, TypedData};
+use crate::{CPU, DataType, SLMP4EConnectionProps, TypedData};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
@@ -172,4 +174,95 @@ pub struct BlockedDeviceData<'a> {
     pub access_type: AccessType,
     pub start_device: Device,
     pub data: &'a [TypedData],
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
+pub struct MonitorList {
+    pub sorted_devices: Vec<TypedDevice>,
+    pub single_word_access_points: u8,
+    pub double_word_access_points: u8,
+}
+
+impl From<&[TypedDevice]> for MonitorList {
+    fn from(value: &[TypedDevice]) -> Self {
+        let mut sorted_devices: Vec<TypedDevice> = value.iter()
+            .filter(|x| !matches!(x.data_type, DataType::F64 | DataType::Bool))
+            .copied()
+            .collect();
+        sorted_devices.sort_by_key(|p| p.device.address);
+        sorted_devices.sort_by_key(|p| p.data_type);
+
+        let single_word_access_points: u8 = sorted_devices.iter().filter(|x| x.data_type.device_size() == DeviceSize::SingleWord).count() as u8;
+        let double_word_access_points: u8 = sorted_devices.iter().filter(|x| x.data_type.device_size() == DeviceSize::DoubleWord).count() as u8;
+
+        Self {sorted_devices, single_word_access_points, double_word_access_points}
+    }
+}
+
+impl MonitorList {
+
+    pub fn new() -> Self {
+        const MAX_MONITOR_LIST: usize = 256;
+        Self {
+            sorted_devices: Vec::with_capacity(MAX_MONITOR_LIST),
+            single_word_access_points: 0,
+            double_word_access_points: 0
+        }
+    }
+
+    pub fn parse(&self, data: &[u8]) -> Vec<DeviceData> {
+
+        const SINGLE_WORD_BYTELEN: usize = 2;
+        const DOUBLE_WORD_BYTELEN: usize = 4;
+
+        let total_access_points: usize = (self.single_word_access_points + self.double_word_access_points) as usize;
+        let single_word_data_byte_len: usize = self.single_word_access_points as usize * SINGLE_WORD_BYTELEN;
+
+        let single_word_data: &[u8] = &data[..single_word_data_byte_len];
+        let double_word_data: &[u8] = &data[single_word_data_byte_len..];
+
+        let mut ret: Vec<DeviceData> = Vec::with_capacity(total_access_points);
+
+                let mut i = 0;
+
+        for x in single_word_data.chunks_exact(SINGLE_WORD_BYTELEN) {
+            ret.push(DeviceData {
+                device: self.sorted_devices[i].device,
+                data: TypedData::from((x, self.sorted_devices[i].data_type)),
+            });
+            i += 1;
+        }
+        for x in double_word_data.chunks_exact(DOUBLE_WORD_BYTELEN) {
+            ret.push(DeviceData {
+                device: self.sorted_devices[i].device,
+                data: TypedData::from((x, self.sorted_devices[i].data_type)),
+            });
+            i += 1;
+        }
+
+        ret
+    }
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
+pub struct MonitorRequest<'a> {
+    pub connection_props: &'a SLMP4EConnectionProps,
+    pub monitor_device: TypedDevice
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
+pub struct MonitoredDevice {
+    pub socket_addr: SocketAddr,
+    pub monitor_device: TypedDevice
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
+pub struct PLCData {
+    pub socket_addr: SocketAddr,
+    pub device_data: DeviceData,
 }
