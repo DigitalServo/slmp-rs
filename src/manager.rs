@@ -75,7 +75,7 @@ impl SLMPConnectionManager {
     }
 
     pub async fn connect<'a, T, F, Fut>(&self, connection_props: &'a SLMP4EConnectionProps, cyclic_task: F, cycle_ms: u64) -> std::io::Result<()>
-        where 
+        where
             F: Fn(Vec<PLCData>) -> Fut + std::marker::Send + 'static,
             Fut: std::future::Future<Output = std::io::Result<T>> + std::marker::Send,
     {
@@ -91,7 +91,7 @@ impl SLMPConnectionManager {
 
         let mut worker = SLMPWorker::new(Arc::new(tokio::sync::Mutex::new(client)));
 
-        let (sender_targets, mut receiver_targets) = unbounded_channel::<Vec<TypedDevice>>();        
+        let (sender_targets, mut receiver_targets) = unbounded_channel::<Vec<TypedDevice>>();
 
         let client = worker.client.clone();
         let monitor_target = worker.monitor_target.clone();
@@ -123,7 +123,7 @@ impl SLMPConnectionManager {
                         _ = interval.tick() => {
 
                             let target_devices = monitor_target.read().await;
-                            
+
 
                             if target_devices.sorted_devices.len() != 0 {
                                 let ret = {
@@ -214,7 +214,7 @@ impl SLMPConnectionManager {
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(monitored_devices)
-    }   
+    }
 
     pub async fn get_connections_with_elapsed_time(&self) -> HashMap<SocketAddr, std::time::Duration> {
         let map = self.connections.lock().await;
@@ -231,7 +231,7 @@ impl SLMPConnectionManager {
             Fut: std::future::Future<Output = std::io::Result<T>>,
     {
         let socket_addr: SocketAddr = SocketAddr::try_from(connection_props)?;
-        
+
         let worker = {
             let map = self.connections.lock().await;
             map.get(&socket_addr)

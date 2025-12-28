@@ -2,7 +2,7 @@ use slmp::*;
 
 #[tokio::main]
 async fn main() {
-    
+
     let connection_props: SLMP4EConnectionProps = SLMP4EConnectionProps {
         ip: String::from("192.168.3.10"),
         port: 5007,
@@ -19,21 +19,21 @@ async fn main() {
     client.connect().await.unwrap();
 
     // Word data
-    let start_device: Device = Device{device_type: DeviceType::D, address: 4000};
-    let data = [
-        TypedData::U16(10),
-        TypedData::U16(20),
-        TypedData::U16(30),
-        TypedData::U16(40),
-        TypedData::U16(50),
-        TypedData::U16(60),
-        TypedData::U16(70),
-        TypedData::U16(80),
-    ];
+    let start_device: Device = Device{device_type: DeviceType::D, address: 0};
 
-    client.bulk_write(start_device, &data).await.unwrap();
+    for i in 0..200 {
+        let data: Vec<TypedData> = [0u16; 120]
+            .iter()
+            .enumerate()
+            .map(|(j, _)| TypedData::U16(i as u16 + j as u16))
+            .collect();
 
-    let ret: Vec<DeviceData> = client.bulk_read(start_device, data.len(), DataType::U16).await.unwrap();
+        client.bulk_write(start_device, &data).await.unwrap();
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+    }
+
+    let ret: Vec<DeviceData> = client.bulk_read(start_device, 8, DataType::U16).await.unwrap();
     println!("\nDevice access:");
     for x in ret {
         println!("{:?}", x);
@@ -59,4 +59,3 @@ async fn main() {
 
     client.close().await;
 }
-

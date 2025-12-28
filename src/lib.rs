@@ -141,7 +141,7 @@ impl SLMPClient {
 
     pub async fn connect(&self) -> std::io::Result<()> {
         self.close().await;
-        
+
         let addr: (&str, u16) = (&self.connection_props.ip, self.connection_props.port);
         let socket_addr: SocketAddr = addr
             .to_socket_addrs()?
@@ -154,7 +154,7 @@ impl SLMPClient {
 
         let mut lock = self.stream.lock().await;
         *lock = Some(stream);
-        
+
         Ok(())
     }
 
@@ -166,7 +166,7 @@ impl SLMPClient {
 
         timeout(self.send_timeout, stream.write_all(&msg)).await
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut,"Send Failed (Timeout)"))??;
-        
+
         let bytes_read = timeout(self.recv_timeout, stream.read(&mut self.buffer)).await
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut,"Read Failed (Timeout)"))??;
 
@@ -179,7 +179,7 @@ impl SLMPClient {
         const FIXED_FRAME_LEN: usize = 13;
         const RESPONSE_CODE: [u8; 2] = [0xD4, 0x00];
         const BLANK_CODE: u8 = 0x00;
-        
+
         let data_len: usize = data.len();
         if data_len < FIXED_FRAME_LEN {
             return Err(invalidDataError!("Received Invalid Length Data"));
@@ -209,7 +209,7 @@ impl SLMPClient {
             };
             return Err(invalidDataError!(format!("SLMP Returns Error: {error_msg} (0x{error:X})")));
         }
-        
+
         check!(data, 0..2, RESPONSE_CODE, "Received Invalid Response Data");
         check!(data, 2..4, self.connection_props.serial_id.to_le_bytes(), "Received Invalid Serial ID");
         check!(data, 4..6, [BLANK_CODE; 2], "Received Invalid Blank Code");
@@ -246,7 +246,7 @@ impl SLMPClient {
         let bit_access_points: u8 = sorted_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::Bit).count() as u8;
         let single_word_access_points: u8 = sorted_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::SingleWord).count() as u8;
         let double_word_access_points: u8 = sorted_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::DoubleWord).count() as u8;
-        
+
         let query = SLMPRandomWriteQuery {
             connection_props: &self.connection_props,
             sorted_data: &sorted_data,
@@ -266,7 +266,7 @@ impl SLMPClient {
 
         let word_access_points: u8 = sorted_data.iter().filter(|x| x.access_type == AccessType::Word).count() as u8;
         let bit_access_points: u8 = sorted_data.iter().filter(|x| x.access_type == AccessType::Bit).count() as u8;
-        
+
         let query = SLMPBlockWriteQuery {
             connection_props: &self.connection_props,
             sorted_data: &sorted_data,
@@ -278,7 +278,7 @@ impl SLMPClient {
         self.request_response(&cmd).await.map(|_| ())
     }
 
-    pub async fn bulk_read(&mut self, start_device: Device, device_num: usize, data_type: DataType) -> std::io::Result<Vec<DeviceData>> 
+    pub async fn bulk_read(&mut self, start_device: Device, device_num: usize, data_type: DataType) -> std::io::Result<Vec<DeviceData>>
     {
         let query = SLMPBulkReadQuery {
             connection_props: &self.connection_props,
@@ -325,9 +325,10 @@ impl SLMPClient {
         }
     }
 
-    pub async fn random_read(&mut self, devices: &[TypedDevice]) -> std::io::Result<Vec<DeviceData>> 
+    pub async fn random_read(&mut self, devices: &[TypedDevice]) -> std::io::Result<Vec<DeviceData>>
     {
         let monitor_list = MonitorList::from(devices);
+
         let query = SLMPRandomReadQuery {
             connection_props: &self.connection_props,
             monitor_list: &monitor_list
@@ -339,7 +340,7 @@ impl SLMPClient {
     }
 
 
-    pub async fn block_read(&mut self, device_blocks: &[DeviceBlock]) -> std::io::Result<Vec<DeviceData>> 
+    pub async fn block_read(&mut self, device_blocks: &[DeviceBlock]) -> std::io::Result<Vec<DeviceData>>
     {
         const WORD_RESPONSE_BYTEELEN: usize = 2;
         const BIT_RESPONSE_BYTEELEN: usize = 1;
@@ -404,7 +405,7 @@ impl SLMPClient {
         Ok(ret)
     }
 
-    pub async fn monitor_register(&mut self, devices: &[TypedDevice]) -> std::io::Result<MonitorList> 
+    pub async fn monitor_register(&mut self, devices: &[TypedDevice]) -> std::io::Result<MonitorList>
     {
         let monitor_list = MonitorList::from(devices);
         let query = SLMPMonitorRegisterQuery {
@@ -417,14 +418,14 @@ impl SLMPClient {
         Ok(monitor_list)
     }
 
-    pub async fn monitor_read(&mut self, monitor_list: &MonitorList) -> std::io::Result<Vec<DeviceData>> 
+    pub async fn monitor_read(&mut self, monitor_list: &MonitorList) -> std::io::Result<Vec<DeviceData>>
     {
         let query = SLMPMonitorReadQuery {
             connection_props: &self.connection_props
         };
         let cmd: SLMPMonitorReadCommand = query.try_into()?;
         let recv: &[u8] = &(self.request_response(&cmd).await?);
-        
+
         Ok(monitor_list.parse(&recv))
     }
 

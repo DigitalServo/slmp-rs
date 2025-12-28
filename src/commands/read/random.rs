@@ -25,7 +25,7 @@ impl<'a> TryFrom<SLMPRandomReadQuery<'a>> for SLMPRandomReadCommand {
 }
 
 fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
-    
+
     const ACCESS_POINTS_BYTELEN: usize = 2;
 
     #[allow(nonstandard_style)]
@@ -37,7 +37,7 @@ fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
     };
 
     let device_addr_bytelen: usize = Device::addr_code_len(query.connection_props.cpu)? as usize;
-   let total_access_points: usize = (query.monitor_list.single_word_access_points + query.monitor_list.double_word_access_points) as usize;
+    let total_access_points: usize = (query.monitor_list.single_word_access_points + query.monitor_list.double_word_access_points) as usize;
 
     let data_packet_len: usize = ACCESS_POINTS_BYTELEN + (total_access_points * device_addr_bytelen);
     let mut data_packet: Vec<u8> = Vec::with_capacity(data_packet_len);

@@ -57,7 +57,7 @@ impl From<(&[u8], DataType)> for TypedData {
     #[inline(always)]
     fn from(value: (&[u8], DataType)) -> Self {
         match value.1 {
-            DataType::Bool => TypedData::Bool(value.0[0] == 1),
+            DataType::Bool => TypedData::Bool(u16::from_le_bytes([value.0[0], value.0[1]]) & 0x01 == 1),
             DataType::U16 => TypedData::U16(u16::from_le_bytes([value.0[0], value.0[1]])),
             DataType::I16 => TypedData::I16(i16::from_le_bytes([value.0[0], value.0[1]])),
             DataType::U32 => TypedData::U32(u32::from_le_bytes([value.0[0], value.0[1], value.0[2], value.0[3]])),
@@ -84,7 +84,7 @@ impl TypedData {
             }
         }
     }
-    
+
     #[inline(always)]
     pub const fn get_type(&self) -> DataType {
         match self {

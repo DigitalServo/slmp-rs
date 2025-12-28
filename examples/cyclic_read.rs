@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let manager = SLMPConnectionManager::new();
 
-    let cycle_ms: u64 = 500;
+    let cycle_ms: u64 = 100;
     let cyclic_task = async |data| {
         for x in data {
             println!("{:?}", x);
@@ -34,21 +34,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             connection_props: &connection_props,
             monitor_device: TypedDevice {
                 device: Device { device_type: DeviceType::D, address: 4001 },
-                data_type: DataType::U16    
+                data_type: DataType::U16
             }
         },
         MonitorRequest {
             connection_props: &connection_props,
             monitor_device: TypedDevice {
                 device: Device { device_type: DeviceType::D, address: 4002 },
-                data_type: DataType::U16    
+                data_type: DataType::U16
             }
         },
         MonitorRequest {
             connection_props: &connection_props,
             monitor_device: TypedDevice {
                 device: Device { device_type: DeviceType::D, address: 4003 },
-                data_type: DataType::U16    
+                data_type: DataType::U16
             }
         },
     ];

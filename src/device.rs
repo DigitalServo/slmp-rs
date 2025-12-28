@@ -33,7 +33,7 @@ impl From<DeviceSize> for u16 {
 
 
 /// Device type used in Mitsubishi PLC.
-/// 
+///
 /// Available devices: X, Y, M, L, F, V, B, D, W, S, Z, R, TS, TC, TN, SS, SC, SN, CS, CC, CN, SB, SD, SM, SW, DX, DY, ZR,
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
@@ -157,7 +157,7 @@ pub struct DeviceBlock {
 
 /// Data of the specified device.
 /// It is used for random-write request and all of read requests.
-/// 
+///
 /// Results of the read requets are unified in the form of this struct.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
@@ -189,14 +189,20 @@ impl From<&[TypedDevice]> for MonitorList {
         let mut sorted_devices: Vec<(usize, TypedDevice)> = value
             .into_iter()
             .enumerate()
-            .filter(|&(_, typed_device)| !matches!(typed_device.data_type, DataType::F64 | DataType::Bool))
+            .filter(|&(_, typed_device)| !matches!(typed_device.data_type, DataType::F64))
             .map(|(i, typed_device)| (i, typed_device.clone()))
             .collect();
         sorted_devices.sort_by_key(|p| p.1.device.address);
         sorted_devices.sort_by_key(|p| p.1.data_type);
 
-        let single_word_access_points: u8 = sorted_devices.iter().filter(|x| x.1.data_type.device_size() == DeviceSize::SingleWord).count() as u8;
-        let double_word_access_points: u8 = sorted_devices.iter().filter(|x| x.1.data_type.device_size() == DeviceSize::DoubleWord).count() as u8;
+        let single_word_access_points: u8 = sorted_devices
+            .iter()
+            .filter(|x| matches!(x.1.data_type.device_size(), DeviceSize::SingleWord | DeviceSize::Bit))
+            .count() as u8;
+        let double_word_access_points: u8 = sorted_devices
+            .iter()
+            .filter(|x| matches!(x.1.data_type.device_size(), DeviceSize::DoubleWord))
+            .count() as u8;
 
         Self {sorted_devices, single_word_access_points, double_word_access_points}
     }
