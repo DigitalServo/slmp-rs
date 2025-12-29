@@ -223,40 +223,71 @@ impl SLMPClient {
 
     pub async fn bulk_write<'a>(&mut self, start_device: Device, data: &'a [TypedData]) -> std::io::Result<()>
     {
-        let query = SLMPBulkWriteQuery {
-            connection_props: &self.connection_props,
-            start_device,
-            data,
-        };
-        let cmd: SLMPBulkWriteCommand = query.try_into()?;
+        if data.len() > 0 {
+            let query = SLMPBulkWriteQuery {
+                connection_props: &self.connection_props,
+                start_device,
+                data,
+            };
+            let cmd: SLMPBulkWriteCommand = query.try_into()?;
 
-        self.request_response(&cmd).await.map(|_| ())
+            self.request_response(&cmd).await.map(|_| ())?;
+        }
+
+        Ok(())
     }
 
 
     pub async fn random_write<'a>(&mut self, data: &'a [DeviceData]) -> std::io::Result<()>
     {
-        let mut sorted_data: Vec<DeviceData> = data.iter()
-            .filter(|x| !matches!(x.data, TypedData::F64(_)))
+        // Word access
+        let mut sorted_word_data: Vec<DeviceData> = data.iter()
+            .filter(|x| !matches!(x.data, TypedData::F64(_) | TypedData::Bool(_)))
             .copied()
             .collect();
-        sorted_data.sort_by_key(|p| p.device.address);
-        sorted_data.sort_by_key(|p| p.data.get_type());
+        sorted_word_data.sort_by_key(|p| p.device.address);
+        sorted_word_data.sort_by_key(|p| p.data.get_type());
 
-        let bit_access_points: u8 = sorted_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::Bit).count() as u8;
-        let single_word_access_points: u8 = sorted_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::SingleWord).count() as u8;
-        let double_word_access_points: u8 = sorted_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::DoubleWord).count() as u8;
+        // Bit access
+        let mut sorted_bit_data: Vec<DeviceData> = data.iter()
+            .filter(|x| matches!(x.data, TypedData::Bool(_)))
+            .copied()
+            .collect();
+        sorted_bit_data.sort_by_key(|p| p.device.address);
 
-        let query = SLMPRandomWriteQuery {
-            connection_props: &self.connection_props,
-            sorted_data: &sorted_data,
-            bit_access_points,
-            single_word_access_points,
-            double_word_access_points
-        };
-        let cmd: SLMPRandomWriteCommand = query.try_into()?;
+        let single_word_access_points: u8 = sorted_word_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::SingleWord).count() as u8;
+        let double_word_access_points: u8 = sorted_word_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::DoubleWord).count() as u8;
+        let bit_access_points: u8 = sorted_bit_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::Bit).count() as u8;
 
-        self.request_response(&cmd).await.map(|_| ())
+        if single_word_access_points + double_word_access_points > 0 {
+            let query = SLMPRandomWriteQuery {
+                connection_props: &self.connection_props,
+                sorted_data: &sorted_word_data,
+                access_type: AccessType::Word,
+                bit_access_points: 0,
+                single_word_access_points,
+                double_word_access_points
+            };
+            let cmd: SLMPRandomWriteCommand = query.try_into()?;
+
+            self.request_response(&cmd).await.map(|_| ())?;
+        }
+
+        if bit_access_points > 0 {
+            let query = SLMPRandomWriteQuery {
+                connection_props: &self.connection_props,
+                sorted_data: &sorted_bit_data,
+                access_type: AccessType::Bit,
+                bit_access_points,
+                single_word_access_points: 0,
+                double_word_access_points: 0
+            };
+            let cmd: SLMPRandomWriteCommand = query.try_into()?;
+
+            self.request_response(&cmd).await.map(|_| ())?;
+        }
+
+        Ok(())
     }
 
     pub async fn block_write<'a>(&mut self, data: &'a [BlockedDeviceData<'a>]) -> std::io::Result<()>
@@ -267,15 +298,19 @@ impl SLMPClient {
         let word_access_points: u8 = sorted_data.iter().filter(|x| x.access_type == AccessType::Word).count() as u8;
         let bit_access_points: u8 = sorted_data.iter().filter(|x| x.access_type == AccessType::Bit).count() as u8;
 
-        let query = SLMPBlockWriteQuery {
-            connection_props: &self.connection_props,
-            sorted_data: &sorted_data,
-            word_access_points,
-            bit_access_points
-        };
-        let cmd: SLMPBlockWriteCommand = query.try_into()?;
+        if word_access_points + bit_access_points > 0 {
+            let query = SLMPBlockWriteQuery {
+                connection_props: &self.connection_props,
+                sorted_data: &sorted_data,
+                word_access_points,
+                bit_access_points
+            };
+            let cmd: SLMPBlockWriteCommand = query.try_into()?;
 
-        self.request_response(&cmd).await.map(|_| ())
+            self.request_response(&cmd).await.map(|_| ())?;
+        }
+
+        Ok(())
     }
 
     pub async fn bulk_read(&mut self, start_device: Device, device_num: usize, data_type: DataType) -> std::io::Result<Vec<DeviceData>>

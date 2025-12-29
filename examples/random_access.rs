@@ -18,31 +18,12 @@ async fn main() {
     let mut client = SLMPClient::new(connection_props);
     client.connect().await.unwrap();
 
-    // Word data
+    // Write
     let devices = [
         Device{device_type: DeviceType::D, address: 25},
         Device{device_type: DeviceType::D, address: 20},
         Device{device_type: DeviceType::D, address: 35},
         Device{device_type: DeviceType::D, address: 30},
-    ];
-
-    let data = [
-        TypedData::U16(10),
-        TypedData::U16(20),
-        TypedData::U32(80000),
-        TypedData::I16(-40),
-    ];
-
-    let wr_data = [
-        DeviceData{device: devices[0], data: data[0]},
-        DeviceData{device: devices[2], data: data[2]},
-        DeviceData{device: devices[1], data: data[1]},
-        DeviceData{device: devices[3], data: data[3]},
-    ];
-    client.random_write(&wr_data).await.unwrap();
-
-    // Bit data
-    let devices = [
         Device{device_type: DeviceType::M, address: 10},
         Device{device_type: DeviceType::M, address: 11},
         Device{device_type: DeviceType::M, address: 12},
@@ -50,6 +31,10 @@ async fn main() {
     ];
 
     let data = [
+        TypedData::U16(10),
+        TypedData::U16(20),
+        TypedData::U32(80000),
+        TypedData::I16(-40),
         TypedData::Bool(true),
         TypedData::Bool(false),
         TypedData::Bool(true),
@@ -57,15 +42,18 @@ async fn main() {
     ];
 
     let wr_data = [
+        DeviceData{device: devices[0], data: data[0]},
+        DeviceData{device: devices[2], data: data[2]},
+        DeviceData{device: devices[1], data: data[1]},
+        DeviceData{device: devices[3], data: data[3]},
         DeviceData{device: devices[3], data: data[3]},
         DeviceData{device: devices[1], data: data[1]},
         DeviceData{device: devices[0], data: data[0]},
         DeviceData{device: devices[2], data: data[2]},
-
     ];
     client.random_write(&wr_data).await.unwrap();
 
-
+    // Read
     let devices = [
         Device{device_type: DeviceType::D, address: 25},
         Device{device_type: DeviceType::D, address: 20},

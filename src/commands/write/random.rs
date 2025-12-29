@@ -6,6 +6,7 @@ const COMMAND_RANDOM_WRITE: u16 = 0x1402;
 pub struct SLMPRandomWriteQuery<'a> {
     pub connection_props: &'a SLMP4EConnectionProps,
     pub sorted_data: &'a [DeviceData],
+    pub access_type: AccessType,
     pub bit_access_points: u8,
     pub single_word_access_points: u8,
     pub double_word_access_points: u8,
@@ -57,16 +58,11 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
     let single_word_wreq_bytelen: u8 = device_addr_bytelen + SINGLE_WORD_BYTELEN;
     let double_word_wreq_bytelen: u8 = device_addr_bytelen + DOUBLE_WORD_BYTELEN;
 
-    let access_type: AccessType = match query.sorted_data.iter().all(|x| matches!(x.data, TypedData::Bool(_))) {
-        true => AccessType::Bit,
-        false => AccessType::Word
-    };
-
     #[allow(nonstandard_style)]
     const command: [u8; 2] = COMMAND_RANDOM_WRITE.to_le_bytes();
-    let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, access_type)?;
+    let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, query.access_type)?;
 
-    let data_packet_len = match access_type {
+    let data_packet_len = match query.access_type {
         AccessType::Word => {
             const LENGTH_SPECIFIER_BYTELEN: u8 = 2;
             let single_words_wreq_bytelen: u8 = query.single_word_access_points * single_word_wreq_bytelen;
@@ -81,8 +77,8 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
     } as usize;
 
     let mut data_packet: Vec<u8> = Vec::with_capacity(data_packet_len);
-    
-    match access_type {
+
+    match query.access_type {
         AccessType::Word => {
             data_packet.extend([query.single_word_access_points, query.double_word_access_points]);
             for x in query.sorted_data {
@@ -113,4 +109,3 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
 
     Ok(packet)
 }
-
