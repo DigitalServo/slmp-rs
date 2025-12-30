@@ -26,12 +26,15 @@ async fn main() {
 ```
 
 ## Access Method
-This library supports 3 methods
+This library supports 4 methods
 - Bulk read/write
 - Random read/write
-- Block read/write.
+- Block read/write
+- Monitor register/read
 
 and primitive number type
+- bool
+- [bool; 16] (word-size access)
 - u8
 - i8
 - u16
