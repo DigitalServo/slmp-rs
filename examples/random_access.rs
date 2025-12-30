@@ -63,6 +63,7 @@ async fn main() {
         Device{device_type: DeviceType::M, address: 11},
         Device{device_type: DeviceType::M, address: 12},
         Device{device_type: DeviceType::M, address: 13},
+        Device{device_type: DeviceType::M, address: 10},
     ];
 
     let devices = [
@@ -74,6 +75,7 @@ async fn main() {
         TypedDevice{device: devices[6], data_type: DataType::Bool},
         TypedDevice{device: devices[5], data_type: DataType::Bool},
         TypedDevice{device: devices[4], data_type: DataType::Bool},
+        TypedDevice{device: devices[8], data_type: DataType::BitArray16},
     ];
 
     let ret = client.random_read(&devices).await.unwrap();

@@ -474,7 +474,7 @@ pub(crate) const fn div_ceil(a: usize, b: usize) -> usize {
 
 #[inline(always)]
 pub(crate) const fn u8_to_bits(n: u8) -> [bool; 8] {
-    [ n & 1 != 0, n & 2 != 0, n & 4 != 0, n & 8 != 0, n & 16 != 0, n & 32 != 0, n & 64 != 0, n & 128 != 0 ]
+    [ n & 0x01 != 0, n & 0x02 != 0, n & 0x04 != 0, n & 0x08 != 0, n & 0x10 != 0, n & 0x20 != 0, n & 0x40 != 0, n & 0x80 != 0, ]
 }
 
 #[inline(always)]
@@ -487,4 +487,28 @@ pub(crate) const fn bits_to_u8(bits: [bool; 8]) -> u8 {
     ((bits[5] as u8) << 5) |
     ((bits[6] as u8) << 6) |
     ((bits[7] as u8) << 7)
+}
+
+#[inline(always)]
+pub(crate) const fn u16_to_bits(n: u16) -> [bool; 16] {
+    let bytes: [u8; 2] = n.to_le_bytes();
+
+    let low_bits = u8_to_bits(bytes[0]);
+    let high_bits = u8_to_bits(bytes[1]);
+
+    [
+        low_bits[0], low_bits[1], low_bits[2], low_bits[3], low_bits[4], low_bits[5], low_bits[6], low_bits[7],
+        high_bits[0], high_bits[1], high_bits[2], high_bits[3], high_bits[4], high_bits[5], high_bits[6], high_bits[7],
+    ]
+}
+
+#[inline(always)]
+pub(crate) const fn bits_to_u16(bits: [bool; 16]) -> u16 {
+    let low_bits = [bits[0], bits[1], bits[2], bits[3], bits[4], bits[5], bits[6], bits[7]];
+    let high_bits = [bits[8], bits[9], bits[10], bits[11], bits[12], bits[13], bits[14], bits[15]];
+
+    let high_byte = bits_to_u8(high_bits);
+    let low_byte = bits_to_u8(low_bits);
+
+    u16::from_be_bytes([low_byte, high_byte])
 }

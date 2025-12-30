@@ -1,18 +1,19 @@
 use serde::{Deserialize, Serialize};
 
-use crate::device::DeviceSize;
+use crate::{device::DeviceSize, u16_to_bits, bits_to_u16};
 
 /// Available data type for SLMP communication.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
 pub enum DataType {
     Bool = 1,
-    U16 = 2,
-    I16 = 3,
-    U32 = 4,
-    I32 = 5,
-    F32 = 6,
-    F64 = 7,
+    BitArray16 = 2,
+    U16 = 3,
+    I16 = 4,
+    U32 = 5,
+    I32 = 6,
+    F32 = 7,
+    F64 = 8,
 }
 
 impl DataType {
@@ -20,7 +21,7 @@ impl DataType {
     pub(crate) const fn byte_size(&self) -> usize {
         match self {
             DataType::Bool => 1,
-            DataType::U16 | DataType::I16 => 2,
+            DataType::BitArray16 | DataType::U16 | DataType::I16 => 2,
             DataType::U32 | DataType::I32 | DataType::F32=> 4,
             DataType::F64 => 8,
         }
@@ -30,7 +31,7 @@ impl DataType {
     pub(crate) const fn device_size(&self) -> DeviceSize {
         match self {
             DataType::Bool => DeviceSize::Bit,
-            DataType::U16 | DataType::I16 => DeviceSize::SingleWord,
+            DataType::BitArray16 | DataType::U16 | DataType::I16 => DeviceSize::SingleWord,
             DataType::U32 | DataType::I32 | DataType::F32 => DeviceSize::DoubleWord,
             DataType::F64 => DeviceSize::QuadrupleWord,
         }
@@ -44,6 +45,7 @@ impl DataType {
 #[serde(tag = "type", content = "value")]
 pub enum TypedData {
     Bool(bool),
+    BitArray16([bool; 16]),
     U16(u16),
     I16(i16),
     U32(u32),
@@ -58,6 +60,7 @@ impl From<(&[u8], DataType)> for TypedData {
     fn from(value: (&[u8], DataType)) -> Self {
         match value.1 {
             DataType::Bool => TypedData::Bool(u16::from_le_bytes([value.0[0], value.0[1]]) & 0x01 == 1),
+            DataType::BitArray16 => TypedData::BitArray16(u16_to_bits(u16::from_le_bytes([value.0[0], value.0[1]]))),
             DataType::U16 => TypedData::U16(u16::from_le_bytes([value.0[0], value.0[1]])),
             DataType::I16 => TypedData::I16(i16::from_le_bytes([value.0[0], value.0[1]])),
             DataType::U32 => TypedData::U32(u32::from_le_bytes([value.0[0], value.0[1], value.0[2], value.0[3]])),
@@ -75,6 +78,7 @@ impl TypedData {
             match self {
                 TypedData::Bool(true)  => &[1, 0],
                 TypedData::Bool(false) => &[0, 0],
+                TypedData::BitArray16(v) => std::slice::from_raw_parts(bits_to_u16(*v) as *const u16 as *const u8, 2),
                 TypedData::U16(v) => std::slice::from_raw_parts(v as *const u16 as *const u8, 2),
                 TypedData::I16(v) => std::slice::from_raw_parts(v as *const i16 as *const u8, 2),
                 TypedData::U32(v) => std::slice::from_raw_parts(v as *const u32 as *const u8, 4),
@@ -89,6 +93,7 @@ impl TypedData {
     pub const fn get_type(&self) -> DataType {
         match self {
             TypedData::Bool(_) => DataType::Bool,
+            TypedData::BitArray16(_) => DataType::BitArray16,
             TypedData::U16(_) => DataType::U16,
             TypedData::I16(_) => DataType::I16,
             TypedData::U32(_) => DataType::U32,
