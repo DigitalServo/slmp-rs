@@ -74,7 +74,7 @@ This library supports
 - [x]  Echo
 - [ ]  Error Clear (for serial communication unit)
 
-There are restrictions on use of　remote reset.
+There are restrictions on use of remote reset.
 Please check the document from Mitsubishi Electronics.
 
 The sample is prepared in `/examples`:
