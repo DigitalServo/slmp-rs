@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 The sample of cyclic read is prepared in `/examples`:
 ```bash
-cargo r --example cyclic_access
+cargo r --example cyclic_read
 ```
 
 > [!CAUTION]
