@@ -21,19 +21,49 @@ async fn main() {
     // Word data
     let start_device: Device = Device{device_type: DeviceType::D, address: 0};
 
-    for i in 0..200 {
-        let data: Vec<TypedData> = [0u16; 120]
-            .iter()
-            .enumerate()
-            .map(|(j, _)| TypedData::U16(i as u16 + j as u16))
-            .collect();
+    let data: Vec<TypedData> = [0u16; 120]
+        .iter()
+        .enumerate()
+        .map(|(j, _)| TypedData::U16(j as u16))
+        .collect();
 
-        client.bulk_write(start_device, &data).await.unwrap();
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    }
+    client.bulk_write(start_device, &data).await.unwrap();
 
     let ret: Vec<DeviceData> = client.bulk_read(start_device, 8, DataType::U16).await.unwrap();
+    println!("\nDevice access:");
+    for x in ret {
+        println!("{:?}", x);
+    }
+
+    // Float value
+    let start_device: Device = Device{device_type: DeviceType::D, address: 100};
+
+    let data: Vec<TypedData> = vec![
+        TypedData::from(100.0f64),
+        TypedData::from(200.0f64),
+    ];
+
+    client.bulk_write(start_device, &data).await.unwrap();
+
+    let ret: Vec<DeviceData> = client.bulk_read(start_device, 2, DataType::F64).await.unwrap();
+    println!("\nDevice access:");
+    for x in ret {
+        println!("{:?}", x);
+    }
+
+    // String data
+    let start_device: Device = Device{device_type: DeviceType::D, address: 10};
+
+    let device_size: u8 = 10;
+    let data: Vec<TypedData> = vec![
+        TypedData::from(("ABcd", device_size)),
+        TypedData::from(("character", device_size)),
+        TypedData::from(("日本語", device_size)),
+    ];
+
+    client.bulk_write(start_device, &data).await.unwrap();
+
+    let ret: Vec<DeviceData> = client.bulk_read(start_device, 3, DataType::String(10)).await.unwrap();
     println!("\nDevice access:");
     for x in ret {
         println!("{:?}", x);

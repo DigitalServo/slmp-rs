@@ -1,3 +1,4 @@
+use crate::device::DeviceSize;
 use crate::{CPU, Device, MonitorList, SLMP4EConnectionProps};
 use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 
@@ -43,8 +44,20 @@ fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
     let mut data_packet: Vec<u8> = Vec::with_capacity(data_packet_len);
 
     data_packet.extend([query.monitor_list.single_word_access_points, query.monitor_list.double_word_access_points,]);
+
+    // The devices "sorted_device" is in the order of single-word, multi-word, and double-word.
+    // A multi-word read-request is to be decomposed to single-word read-requests.
     for device in &query.monitor_list.sorted_devices {
-        data_packet.extend(device.1.device.serialize(query.connection_props.cpu)?);
+        match device.1.data_type.device_size() {
+            DeviceSize::MultiWord(n) => {
+                let mut target_device = device.1.device;
+                for _ in 0..n {
+                    data_packet.extend(target_device.serialize(query.connection_props.cpu)?);
+                    target_device.address += 1 as usize;
+                }
+            },
+            _ => data_packet.extend(device.1.device.serialize(query.connection_props.cpu)?),
+        };
     }
 
     let command_len: u16 = (COMMAND_PREFIX_BYTELEN + data_packet_len) as u16;

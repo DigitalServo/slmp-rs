@@ -1,3 +1,4 @@
+use crate::device::DeviceSize;
 use crate::{AccessType, CPU, Device, DeviceData, SLMP4EConnectionProps, TypedData};
 use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 
@@ -47,6 +48,7 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
 
     const SINGLE_WORD_BYTELEN: u8 = 2;
     const DOUBLE_WORD_BYTELEN: u8 = 4;
+
     let bit_bytelen = match query.connection_props.cpu {
         CPU::Q | CPU::L => 1,
         CPU::R => 2,
@@ -82,8 +84,24 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
         AccessType::Word => {
             data_packet.extend([query.single_word_access_points, query.double_word_access_points]);
             for x in query.sorted_data {
-                data_packet.extend(&x.device.serialize(query.connection_props.cpu)?);
-                data_packet.extend(x.data.to_bytes());
+                // The devices "sorted_device" is in the order of single-word, multi-word, and double-word.
+                // A multi-word read-request is to be decomposed to single-word read-requests.
+                match x.data.get_type().device_size() {
+                    DeviceSize::MultiWord(n) => {
+                        let mut target_device = x.device;
+                        let bytelen = n as usize * 2;
+                        let data = &x.data.to_bytes()[..bytelen];
+                        for word_data in data.chunks_exact(SINGLE_WORD_BYTELEN as usize) {
+                            data_packet.extend(target_device.serialize(query.connection_props.cpu)?);
+                            data_packet.extend(word_data);
+                            target_device.address += 1 as usize;
+                        }
+                    },
+                    _ => {
+                        data_packet.extend(&x.device.serialize(query.connection_props.cpu)?);
+                        data_packet.extend(x.data.to_bytes());
+                    }
+                }
             }
         }
         AccessType::Bit => {

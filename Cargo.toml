@@ -3,7 +3,7 @@ name = "slmp"
 license = "MIT"
 authors = ["DigitalServo"]
 description = "Library for Seamless Message Protocol (SLMP)　communication"
-version = "0.1.19"
+version = "0.1.20"
 edition = "2024"
 repository = "https://github.com/DigitalServo/slmp-rs"
 documentation = "https://docs.rs/slmp/latest/slmp/"
@@ -13,6 +13,7 @@ default = []
 json-api = []
 
 [dependencies]
-serde = { version = "1.0.228", features = ["derive"] }
+encoding_rs = "0.8.35"
+serde = { version = "1.0.228", features = ["derive", "rc"] }
 tokio = { version = "1.48.0", features = ["full"] }
 tokio-util = "0.7.17"

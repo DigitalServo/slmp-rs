@@ -19,10 +19,10 @@ async fn main() {
     client.connect().await.unwrap();
 
     let data= [
-        BlockedDeviceData { 
+        BlockedDeviceData {
             access_type: AccessType::Word,
             start_device: Device{device_type: DeviceType::D, address: 10},
-            data: &[ TypedData::U16(10), TypedData::U16(20) ]
+            data: &[ TypedData::U16(10), TypedData::U16(20), TypedData::from(("ABCD", 4)) ]
         },
         BlockedDeviceData {
             access_type: AccessType::Word,
@@ -38,7 +38,7 @@ async fn main() {
     client.block_write(&data).await.unwrap();
 
     let device_blocks = [
-        DeviceBlock{ access_type: data[0].access_type, start_device: data[0].start_device, size: data[0].data.len()},
+        DeviceBlock{ access_type: data[0].access_type, start_device: data[0].start_device, size: 6},
         DeviceBlock{ access_type: data[1].access_type, start_device: data[1].start_device, size: data[1].data.len()},
         DeviceBlock{ access_type: data[2].access_type, start_device: data[2].start_device, size: data[2].data.len()},
     ];
@@ -52,5 +52,3 @@ async fn main() {
 
     client.close().await;
 }
-
-

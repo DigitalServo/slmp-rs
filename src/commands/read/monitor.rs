@@ -1,5 +1,4 @@
-use crate::device::MonitorList;
-use crate::{CPU, Device, SLMP4EConnectionProps};
+use crate::{CPU, Device, SLMP4EConnectionProps, MonitorList};
 use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
 
 const COMMAND_REGISTER_MONITOR: u16 = 0x0801;
@@ -27,7 +26,7 @@ impl<'a> TryFrom<SLMPMonitorRegisterQuery<'a>> for SLMPMonitorRegisterCommand {
 }
 
 fn construct_frame (query: SLMPMonitorRegisterQuery) -> std::io::Result<Vec<u8>> {
-    
+
     const ACCESS_POINTS_BYTELEN: usize = 2;
 
     #[allow(nonstandard_style)]
@@ -81,7 +80,7 @@ impl<'a> TryFrom<SLMPMonitorReadQuery<'a>> for SLMPMonitorReadCommand {
         #[allow(nonstandard_style)]
         const command: [u8; 2] = COMMAND_READ_MONITOR.to_le_bytes();
         let subcommand: [u8; 2] = [0x00, 0x00];
-    
+
         let command_len: u16 = COMMAND_PREFIX_BYTELEN as u16;
         let header: [u8; HEADER_BYTELEN + CPUTIMER_BYTELEN] = value.connection_props.generate_header(command_len);
 

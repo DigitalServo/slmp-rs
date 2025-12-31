@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use serde::{Deserialize, Serialize};
-use crate::{CPU, DataType, SLMP4EConnectionProps, TypedData};
+use crate::{CPU, DataType, TypedData};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
@@ -10,13 +10,14 @@ pub enum AccessType {
     Word = 1,
 }
 
+#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
 pub(crate) enum DeviceSize {
     Bit = 1,
     SingleWord = 2,
     DoubleWord = 3,
-    QuadrupleWord = 4,
+    MultiWord(u8) = 4,
 }
 
 impl From<DeviceSize> for u16 {
@@ -26,7 +27,7 @@ impl From<DeviceSize> for u16 {
             DeviceSize::Bit => 1,
             DeviceSize::SingleWord => 1,
             DeviceSize::DoubleWord => 2,
-            DeviceSize::QuadrupleWord => 4,
+            DeviceSize::MultiWord(n) => n as u16
         }
     }
 }
@@ -174,101 +175,6 @@ pub struct BlockedDeviceData<'a> {
     pub access_type: AccessType,
     pub start_device: Device,
     pub data: &'a [TypedData],
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
-pub struct MonitorList {
-    pub sorted_devices: Vec<(usize, TypedDevice)>,
-    pub(crate) single_word_access_points: u8,
-    pub(crate) double_word_access_points: u8,
-}
-
-impl From<&[TypedDevice]> for MonitorList {
-    fn from(value: &[TypedDevice]) -> Self {
-        let mut sorted_devices: Vec<(usize, TypedDevice)> = value
-            .into_iter()
-            .enumerate()
-            .filter(|&(_, typed_device)| !matches!(typed_device.data_type, DataType::F64))
-            .map(|(i, typed_device)| (i, typed_device.clone()))
-            .collect();
-        sorted_devices.sort_by_key(|p| p.1.device.address);
-        sorted_devices.sort_by_key(|p| p.1.data_type);
-
-        let single_word_access_points: u8 = sorted_devices
-            .iter()
-            .filter(|x| matches!(x.1.data_type.device_size(), DeviceSize::SingleWord | DeviceSize::Bit))
-            .count() as u8;
-        let double_word_access_points: u8 = sorted_devices
-            .iter()
-            .filter(|x| matches!(x.1.data_type.device_size(), DeviceSize::DoubleWord))
-            .count() as u8;
-
-        Self {sorted_devices, single_word_access_points, double_word_access_points}
-    }
-}
-
-impl MonitorList {
-    pub fn new() -> Self {
-        const MAX_MONITOR_LIST: usize = 256;
-        Self {
-            sorted_devices: Vec::with_capacity(MAX_MONITOR_LIST),
-            single_word_access_points: 0,
-            double_word_access_points: 0
-        }
-    }
-
-    pub fn parse(&self, data: &[u8]) -> Vec<DeviceData> {
-
-        const SINGLE_WORD_BYTELEN: usize = 2;
-        const DOUBLE_WORD_BYTELEN: usize = 4;
-
-        let total_access_points: usize = (self.single_word_access_points + self.double_word_access_points) as usize;
-        let single_word_data_byte_len: usize = self.single_word_access_points as usize * SINGLE_WORD_BYTELEN;
-
-        let single_word_data: &[u8] = &data[..single_word_data_byte_len];
-        let double_word_data: &[u8] = &data[single_word_data_byte_len..];
-
-        let mut ret: Vec<(usize, DeviceData)> = Vec::with_capacity(total_access_points);
-
-        let mut i = 0;
-
-        for x in single_word_data.chunks_exact(SINGLE_WORD_BYTELEN) {
-            ret.push((self.sorted_devices[i].0, DeviceData {
-                device: self.sorted_devices[i].1.device,
-                data: TypedData::from((x, self.sorted_devices[i].1.data_type)),
-            }));
-            i += 1;
-        }
-        for x in double_word_data.chunks_exact(DOUBLE_WORD_BYTELEN) {
-            ret.push((self.sorted_devices[i].0, DeviceData {
-                device: self.sorted_devices[i].1.device,
-                data: TypedData::from((x, self.sorted_devices[i].1.data_type)),
-            }));
-            i += 1;
-        }
-
-        ret.sort_by_key(|x| x.0);
-
-        let ret: Vec<DeviceData> = ret.into_iter().map(|x| x.1).collect();
-
-        ret
-    }
-}
-
-
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
-pub struct MonitorRequest<'a> {
-    pub connection_props: &'a SLMP4EConnectionProps,
-    pub monitor_device: TypedDevice
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-#[cfg_attr(feature = "json-api", serde(rename_all = "camelCase"))]
-pub struct MonitoredDevice {
-    pub socket_addr: SocketAddr,
-    pub monitor_device: TypedDevice
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Serialize, Deserialize)]

@@ -32,7 +32,7 @@ This library supports 4 methods
 - Block read/write
 - Monitor register/read
 
-and primitive number type
+and primitive types
 - bool
 - [bool; 16] (word-size access)
 - u8
@@ -42,6 +42,8 @@ and primitive number type
 - u32
 - i32
 - f32
+- f64
+- String
 
 ### Read/Write Examples
 - Bulk access

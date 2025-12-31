@@ -2,6 +2,7 @@ mod commands;
 mod data;
 mod device;
 mod manager;
+mod monitor;
 
 
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
@@ -18,8 +19,9 @@ use commands::write::*;
 use device::DeviceSize;
 
 // Public
-pub use data::{DataType, TypedData};
-pub use device::{AccessType, Device, DeviceType, DeviceData, DeviceBlock, BlockedDeviceData, TypedDevice, MonitorList, MonitorRequest, MonitoredDevice, PLCData};
+pub use data::{DataType, TypedData, string::{PLCString, PLCSTRING_QUERY_SPLITTER}};
+pub use device::{AccessType, Device, DeviceType, DeviceData, DeviceBlock, BlockedDeviceData, TypedDevice, PLCData};
+pub use monitor::{MonitorList, MonitorRequest, MonitoredDevice};
 pub use manager::{SLMPConnectionManager, SLMPWorker};
 
 // Constants
@@ -242,7 +244,7 @@ impl SLMPClient {
     {
         // Word access
         let mut sorted_word_data: Vec<DeviceData> = data.iter()
-            .filter(|x| !matches!(x.data, TypedData::F64(_) | TypedData::Bool(_)))
+            .filter(|x| !matches!(x.data, TypedData::Bool(_)))
             .copied()
             .collect();
         sorted_word_data.sort_by_key(|p| p.device.address);
@@ -255,9 +257,26 @@ impl SLMPClient {
             .collect();
         sorted_bit_data.sort_by_key(|p| p.device.address);
 
-        let single_word_access_points: u8 = sorted_word_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::SingleWord).count() as u8;
-        let double_word_access_points: u8 = sorted_word_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::DoubleWord).count() as u8;
-        let bit_access_points: u8 = sorted_bit_data.iter().filter(|x| x.data.get_type().device_size() == DeviceSize::Bit).count() as u8;
+        let single_word_access_points_for_multi_word_communication = sorted_word_data
+            .iter()
+            .filter(|x| matches!(x.data.get_type().device_size(), DeviceSize::MultiWord(_)))
+            .fold(0, |a, b| {
+                if let DeviceSize::MultiWord(n) = b.data.get_type().device_size() { a + n } else { a }
+            });
+
+        let single_word_access_points: u8 = sorted_word_data
+            .iter()
+            .filter(|x| x.data.get_type().device_size() == DeviceSize::SingleWord)
+            .count() as u8 + single_word_access_points_for_multi_word_communication;
+
+        let double_word_access_points: u8 = sorted_word_data
+            .iter()
+            .filter(|x| x.data.get_type().device_size() == DeviceSize::DoubleWord)
+            .count() as u8;
+
+        let bit_access_points: u8 = sorted_bit_data
+            .iter()
+            .filter(|x| x.data.get_type().device_size() == DeviceSize::Bit).count() as u8;
 
         if single_word_access_points + double_word_access_points > 0 {
             let query = SLMPRandomWriteQuery {
@@ -266,7 +285,7 @@ impl SLMPClient {
                 access_type: AccessType::Word,
                 bit_access_points: 0,
                 single_word_access_points,
-                double_word_access_points
+                double_word_access_points,
             };
             let cmd: SLMPRandomWriteCommand = query.try_into()?;
 
@@ -280,7 +299,7 @@ impl SLMPClient {
                 access_type: AccessType::Bit,
                 bit_access_points,
                 single_word_access_points: 0,
-                double_word_access_points: 0
+                double_word_access_points: 0,
             };
             let cmd: SLMPRandomWriteCommand = query.try_into()?;
 
@@ -369,6 +388,7 @@ impl SLMPClient {
             monitor_list: &monitor_list
         };
         let cmd: SLMPRandomReadCommand = query.try_into()?;
+
         let recv: &[u8] = &(self.request_response(&cmd).await?);
 
         Ok(monitor_list.parse(&recv))

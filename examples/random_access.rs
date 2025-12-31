@@ -19,63 +19,33 @@ async fn main() {
     client.connect().await.unwrap();
 
     // Write
-    let devices = [
-        Device{device_type: DeviceType::D, address: 25},
-        Device{device_type: DeviceType::D, address: 20},
-        Device{device_type: DeviceType::D, address: 35},
-        Device{device_type: DeviceType::D, address: 30},
-        Device{device_type: DeviceType::M, address: 10},
-        Device{device_type: DeviceType::M, address: 11},
-        Device{device_type: DeviceType::M, address: 12},
-        Device{device_type: DeviceType::M, address: 13},
-    ];
-
-    let data = [
-        TypedData::U16(10),
-        TypedData::U16(20),
-        TypedData::U32(80000),
-        TypedData::I16(-40),
-        TypedData::Bool(true),
-        TypedData::Bool(false),
-        TypedData::Bool(true),
-        TypedData::Bool(true),
-    ];
-
     let wr_data = [
-        DeviceData{device: devices[0], data: data[0]},
-        DeviceData{device: devices[2], data: data[2]},
-        DeviceData{device: devices[1], data: data[1]},
-        DeviceData{device: devices[3], data: data[3]},
-        DeviceData{device: devices[3], data: data[3]},
-        DeviceData{device: devices[1], data: data[1]},
-        DeviceData{device: devices[0], data: data[0]},
-        DeviceData{device: devices[2], data: data[2]},
+        DeviceData{device: Device{device_type: DeviceType::D, address: 25}, data: TypedData::U16(10)},
+        DeviceData{device: Device{device_type: DeviceType::D, address: 35}, data: TypedData::U32(80000)},
+        DeviceData{device: Device{device_type: DeviceType::D, address: 20}, data: TypedData::U16(20)},
+        DeviceData{device: Device{device_type: DeviceType::D, address: 30}, data: TypedData::I16(-40)},
+        DeviceData{device: Device{device_type: DeviceType::M, address: 10}, data: TypedData::Bool(true)},
+        DeviceData{device: Device{device_type: DeviceType::M, address: 11}, data: TypedData::Bool(false)},
+        DeviceData{device: Device{device_type: DeviceType::M, address: 12}, data: TypedData::Bool(true)},
+        DeviceData{device: Device{device_type: DeviceType::M, address: 13}, data: TypedData::Bool(true)},
+        DeviceData{device: Device{device_type: DeviceType::D, address: 40}, data: TypedData::from(("test", 4))},
+        DeviceData{device: Device{device_type: DeviceType::D, address: 50}, data: TypedData::from(("TEST", 4))},
     ];
     client.random_write(&wr_data).await.unwrap();
 
     // Read
     let devices = [
-        Device{device_type: DeviceType::D, address: 25},
-        Device{device_type: DeviceType::D, address: 20},
-        Device{device_type: DeviceType::D, address: 35},
-        Device{device_type: DeviceType::D, address: 30},
-        Device{device_type: DeviceType::M, address: 10},
-        Device{device_type: DeviceType::M, address: 11},
-        Device{device_type: DeviceType::M, address: 12},
-        Device{device_type: DeviceType::M, address: 13},
-        Device{device_type: DeviceType::M, address: 10},
-    ];
-
-    let devices = [
-        TypedDevice{device: devices[0], data_type: DataType::U16},
-        TypedDevice{device: devices[1], data_type: DataType::U16},
-        TypedDevice{device: devices[2], data_type: DataType::U32},
-        TypedDevice{device: devices[3], data_type: DataType::I16},
-        TypedDevice{device: devices[7], data_type: DataType::Bool},
-        TypedDevice{device: devices[6], data_type: DataType::Bool},
-        TypedDevice{device: devices[5], data_type: DataType::Bool},
-        TypedDevice{device: devices[4], data_type: DataType::Bool},
-        TypedDevice{device: devices[8], data_type: DataType::BitArray16},
+        TypedDevice{device: Device{device_type: DeviceType::D, address: 40}, data_type: DataType::String(10)},
+        TypedDevice{device: Device{device_type: DeviceType::D, address: 50}, data_type: DataType::String(10)},
+        TypedDevice{device: Device{device_type: DeviceType::D, address: 25}, data_type: DataType::U16},
+        TypedDevice{device: Device{device_type: DeviceType::D, address: 20}, data_type: DataType::U16},
+        TypedDevice{device: Device{device_type: DeviceType::D, address: 35}, data_type: DataType::U32},
+        TypedDevice{device: Device{device_type: DeviceType::D, address: 30}, data_type: DataType::I16},
+        TypedDevice{device: Device{device_type: DeviceType::M, address: 13}, data_type: DataType::Bool},
+        TypedDevice{device: Device{device_type: DeviceType::M, address: 12}, data_type: DataType::Bool},
+        TypedDevice{device: Device{device_type: DeviceType::M, address: 11}, data_type: DataType::Bool},
+        TypedDevice{device: Device{device_type: DeviceType::M, address: 10}, data_type: DataType::Bool},
+        TypedDevice{device: Device{device_type: DeviceType::M, address: 10}, data_type: DataType::BitArray16},
     ];
 
     let ret = client.random_read(&devices).await.unwrap();
@@ -84,7 +54,6 @@ async fn main() {
         println!("{:?}", x);
     }
     println!();
-
 
     client.close().await;
 }
