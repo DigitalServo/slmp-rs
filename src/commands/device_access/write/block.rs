@@ -67,7 +67,7 @@ fn construct_frame(query: SLMPBlockWriteQuery) -> std::io::Result<Vec<u8>> {
                 let data_code: Vec<u8> = bit_array.chunks_exact(BYTE_BIT_SIZE)
                     .map(|x| bits_to_u8([x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7]]))
                     .collect();
-                
+
                 let device_size_code: [u8; 2] = (word_size as u16).to_le_bytes();
 
                 data_packet.extend(start_address);
@@ -88,4 +88,3 @@ fn construct_frame(query: SLMPBlockWriteQuery) -> std::io::Result<Vec<u8>> {
 
     Ok(packet)
 }
-

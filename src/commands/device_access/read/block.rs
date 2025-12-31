@@ -29,7 +29,7 @@ impl<'a> TryFrom<SLMPBlockReadQuery<'a>> for SLMPBlockReadCommand {
 }
 
 fn construct_frame (query: SLMPBlockReadQuery) -> std::io::Result<Vec<u8>> {
-    
+
     const ACCESS_POINTS_BYTELEN: usize = 2;
     const DEVICE_SIZE_BYTELEN: u8 = 2;
     let device_addr_bytelen: u8 = Device::addr_code_len(query.connection_props.cpu)?;

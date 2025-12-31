@@ -96,4 +96,3 @@ fn construct_frame(query: SLMPBulkWriteQuery) -> std::io::Result<Vec<u8>> {
 
     Ok(packet)
 }
-

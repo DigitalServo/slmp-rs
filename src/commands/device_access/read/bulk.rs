@@ -48,7 +48,7 @@ fn construct_frame (query: SLMPBulkReadQuery) -> std::io::Result<Vec<u8>> {
         DataType::Bool => AccessType::Bit,
         _ => AccessType::Word
     };
-    
+
     #[allow(nonstandard_style)]
     const command: [u8; 2] = COMMAND_BULK_READ.to_le_bytes();
     let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, access_type)?;

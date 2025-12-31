@@ -12,8 +12,8 @@ Error Response
 Header (Autoset) + Subheader + Access route + Data length + End code + Error
 */
 
-pub(crate) mod read;
-pub(crate) mod write;
+pub(crate) mod device_access;
+pub(crate) mod unit_control;
 
 const HEADER_BYTELEN: usize = 13;
 

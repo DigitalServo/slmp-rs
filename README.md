@@ -27,43 +27,60 @@ async fn main() {
 
 ## Access Method
 SLMP provides roughly 5 categories; device access, label access, buffer-memory access, unit control, and file control.
-This library supports **device access** methods:
-- Bulk read/write
-- Random read/write
-- Block read/write
-- Monitor register/read
+This library supports **device access** and **unit control** methods.
+
+### Device Control
+This library enable you to use
+- [x] Bulk read/write
+- [x] Random read/write
+- [x] Block read/write
+- [x] Monitor register/read
 
 and primitive types
-- bool
-- [bool; 16] (word-size access)
-- u8
-- i8
-- u16
-- i16
-- u32
-- i32
-- f32
-- f64
-- String
+- [x] bool
+- [x] [bool; 16] (Word-size access)
+- [x] u8
+- [x] i8
+- [x] u16
+- [x] i16
+- [x] u32
+- [x] i32
+- [x] f32
+- [x] f64
+- [x] String
 
-### Read/Write Examples
-- Bulk access
-    ```bash
-    cargo r --example bulk_access 
-    ```
+The samples of those methods are prepared in `/examples`:
+```bash
+cargo r --example bulk_access 
+cargo r --example random_access 
+cargo r --example block_access 
+cargo r --example monitor_read
+```
 
-- Random access
-    ```bash
-    cargo r --example random_access 
-    ```
+### Unit Control
+This library supports
+- [x] Remote run
+- [x]  Remote stop
+- [x]  Remote pause
+- [x]  Remote latch clear
+- [x]  Remote reset *
+- [x]  Get cpu type
+- [x]  Remote unlock
+- [x]  Remote lock
+- [x]  Echo
+- [ ]  Error Clear (for serial communication unit)
 
-- Block access
-    ```bash
-    cargo r --example block_access 
-    ```
+There are restrictions on use of　remote reset.
+Please check the document from Mitsubishi Electronics.
+
+The sample is prepared in `/examples`:
+```bash
+cargo r --example unit_control
+```
 
 ## Multi-PLC Connection
 `SLMPConnectionManager` allow you to connect a client to multi PLCs.
+You can give a cyclic task to each connection.
 
 ```rust
 use slmp::{CPU, SLMP4EConnectionProps, SLMPConnectionManager};
@@ -97,8 +114,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### Cyclic Read Example
-- Cyclic access
-    ```bash
-    cargo r --example cyclic_access
-    ```
+The sample of cyclic read is prepared in `/examples`:
+```bash
+cargo r --example cyclic_access
+```
+
+> [!CAUTION]
+> The SLMP protocol features a concise presentation layer, and it allows device modifications, file operations, and changes to CPU operation settings without any authentication.
+>
+> As a result, these vulnerabilities have been registered with CISA.
+> - CVE-2025-7405: Missing Authentication for Critical Function vulnerability
+> - CVE-2025-7731: Cleartext Transmission of Sensitive Information vulnerability
+> 
+> In response to the above reports, Mitsubishi Electric has implemented the following countermeasures (as stated in advisory 2025-012):
+> - Use a virtual private network (VPN) or similar technology to encrypt SLMP communications.
+> - Restrict physical access to the LAN to which the affected products are connected.
+> 
+> (Note: No firmware fix is planned for this vulnerability.)
+> 
+> In other words, improper use of SLMP carries significant risks.
+> Please use it with caution.

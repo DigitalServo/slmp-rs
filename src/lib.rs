@@ -13,8 +13,8 @@ use tokio::sync::Mutex;
 use tokio::time::{timeout, Duration};
 use serde::{Deserialize, Serialize};
 
-use commands::read::*;
-use commands::write::*;
+use crate::commands::device_access::{read::*, write::*};
+use crate::commands::unit_control;
 
 use device::DeviceSize;
 
@@ -84,21 +84,15 @@ impl SLMP4EConnectionProps {
         let command_len: [u8; 2] = command_len.to_le_bytes();
 
         [
-            REQUEST_CODE[0],
-            REQUEST_CODE[1],
-            serial_id[0],
-            serial_id[1],
-            BLANK_CODE,
-            BLANK_CODE,
+            REQUEST_CODE[0], REQUEST_CODE[1],
+            serial_id[0], serial_id[1],
+            BLANK_CODE, BLANK_CODE,
             self.network_id,
             self.pc_id,
-            io_id[0],
-            io_id[1],
+            io_id[0], io_id[1],
             self.area_id,
-            command_len[0],
-            command_len[1],
-            cpu_timer[0],
-            cpu_timer[1],
+            command_len[0], command_len[1],
+            cpu_timer[0], cpu_timer[1],
         ]
 
     }
@@ -222,6 +216,76 @@ impl SLMPClient {
 
         Ok(())
     }
+
+    /* Unit control */
+
+    pub async fn run_cpu(&mut self) -> std::io::Result<()> {
+        let cmd = unit_control::remote_run(&self.connection_props);
+        self.request_response(&cmd).await.map(|_| ())
+    }
+
+    pub async fn stop_cpu(&mut self) -> std::io::Result<()> {
+        let cmd = unit_control::remote_stop(&self.connection_props);
+        self.request_response(&cmd).await.map(|_| ())
+    }
+
+    pub async fn pause_cpu(&mut self) -> std::io::Result<()> {
+        let cmd = unit_control::remote_pause(&self.connection_props);
+        self.request_response(&cmd).await.map(|_| ())
+    }
+
+    pub async fn clear_latch(&mut self) -> std::io::Result<()> {
+        let cmd = unit_control::remote_latch_clear(&self.connection_props);
+        self.request_response(&cmd).await.map(|_| ())
+    }
+
+    pub async fn reset_cpu(&mut self) -> std::io::Result<()> {
+        let cmd = unit_control::remote_reset(&self.connection_props);
+        self.request_response(&cmd).await.map(|_| ())
+    }
+
+    pub async fn get_cpu_type(&mut self) -> std::io::Result<String> {
+        let cmd = unit_control::get_cpu_type(&self.connection_props);
+        let ret = self.request_response(&cmd).await?;
+
+        const END_CODE: u8 = 0x20;
+        let end_pos = ret.iter().position(|&b| b == END_CODE).unwrap_or(ret.len());
+        let cpu_type = String::from_utf8_lossy(&ret[..end_pos]).into_owned();
+
+        Ok(cpu_type)
+    }
+
+    pub async fn lock_cpu(&mut self, password: &str) -> std::io::Result<()> {
+        let cmd = unit_control::lock_cpu(&self.connection_props, password)?;
+        self.request_response(&cmd).await.map(|_| ())
+    }
+
+    pub async fn unlock_cpu(&mut self, password: &str) -> std::io::Result<()> {
+        let cmd = unit_control::unlock_cpu(&self.connection_props, password)?;
+        self.request_response(&cmd).await.map(|_| ())
+    }
+
+    pub async fn echo(&mut self) -> std::io::Result<()> {
+        let cmd = unit_control::echo(&self.connection_props);
+        let recv = self.request_response(&cmd).await
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::NetworkDown, "Echo response did not return in time"))?;
+
+        if &recv[2..6] ==  unit_control::ECHO_MESSAGE {
+            Ok(())
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("Echo mismatch, send: {:02x?}, received: {:02x?}", unit_control::ECHO_MESSAGE, &recv[2..6])
+            ))
+        }
+    }
+
+
+
+
+
+
+    /* Device Access */
 
     pub async fn bulk_write<'a>(&mut self, start_device: Device, data: &'a [TypedData]) -> std::io::Result<()>
     {
