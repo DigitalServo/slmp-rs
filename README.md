@@ -26,7 +26,13 @@ async fn main() {
 ```
 
 ## Access Method
-SLMP provides roughly 5 categories; device access, label access, buffer-memory access, unit control, and file control.
+SLMP provides roughly 5 categories; 
+- [x] device access
+- [ ] label access
+- [ ] buffer-memory access
+- [x] unit control
+- [ ] file control.
+  
 This library supports **device access** and **unit control** methods.
 
 ### Device Control
