@@ -39,8 +39,6 @@ This library enable you to use
 and primitive types
 - [x] bool
 - [x] [bool; 16] (Word-size access)
-- [x] u8
-- [x] i8
 - [x] u16
 - [x] i16
 - [x] u32
