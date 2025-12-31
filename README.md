@@ -26,7 +26,8 @@ async fn main() {
 ```
 
 ## Access Method
-This library supports 4 methods
+SLMP provides roughly 5 categories; device access, label access, buffer-memory access, unit control, and file control.
+This library supports **device access** methods:
 - Bulk read/write
 - Random read/write
 - Block read/write
