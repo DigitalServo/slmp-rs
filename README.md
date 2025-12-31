@@ -1,5 +1,5 @@
 # Seamless Message Protocol (SLMP) for Rust
-This library provides SLMP client to access the PLCs of Mitsubishi Electronic.
+This library provides SLMP client to access the PLCs of Mitsubishi Electric
 
 
 ## Get Started
@@ -75,7 +75,7 @@ This library supports
 - [ ]  Error Clear (for serial communication unit)
 
 There are restrictions on use of remote reset.
-Please check the document from Mitsubishi Electronics.
+Please check the document from Mitsubishi Electric.
 
 The sample is prepared in `/examples`:
 ```bash
