@@ -136,5 +136,5 @@ cargo r --example cyclic_read
 > 
 > (Note: No firmware fix is planned for this vulnerability.)
 > 
-> In other words, improper use of SLMP carries significant risks.
+> It should be noted that improper use of SLMP carries significant risks.
 > Please use it with caution.
