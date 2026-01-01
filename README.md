@@ -83,7 +83,7 @@ cargo r --example unit_control
 ```
 
 ## Multi-PLC Connection
-`SLMPConnectionManager` allow you to connect a client to multi PLCs.
+`SLMPConnectionManager` allows you to connect a client to multi PLCs.
 You can give a cyclic task to each connection.
 
 ```rust
