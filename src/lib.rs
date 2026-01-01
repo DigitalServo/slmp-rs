@@ -24,6 +24,7 @@ pub use device::{AccessType, Device, DeviceType, DeviceData, DeviceBlock, Blocke
 pub use monitor::{MonitorList, MonitorRequest, MonitoredDevice};
 pub use manager::{SLMPConnectionManager, SLMPWorker};
 
+
 // Constants
 const BUFSIZE: usize = 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
@@ -45,7 +46,7 @@ macro_rules! check {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[cfg_attr(feature = "json-api", serde(rename_all = "PascalCase"))]
-pub enum CPU {A, Q, R, F, L}
+pub enum CPU {Q, R, L}
 
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -217,7 +218,7 @@ impl SLMPClient {
         Ok(())
     }
 
-    /* Unit control */
+    /* Unit Control */
 
     pub async fn run_cpu(&mut self) -> std::io::Result<()> {
         let cmd = unit_control::remote_run(&self.connection_props);
@@ -280,10 +281,7 @@ impl SLMPClient {
         }
     }
 
-
-
-
-
+    /* File Control */
 
     /* Device Access */
 
@@ -295,7 +293,7 @@ impl SLMPClient {
                 start_device,
                 data,
             };
-            let cmd: SLMPBulkWriteCommand = query.try_into()?;
+            let cmd: SLMPBulkWriteCommand = query.into();
 
             self.request_response(&cmd).await.map(|_| ())?;
         }
@@ -351,7 +349,7 @@ impl SLMPClient {
                 single_word_access_points,
                 double_word_access_points,
             };
-            let cmd: SLMPRandomWriteCommand = query.try_into()?;
+            let cmd: SLMPRandomWriteCommand = query.into();
 
             self.request_response(&cmd).await.map(|_| ())?;
         }
@@ -365,7 +363,7 @@ impl SLMPClient {
                 single_word_access_points: 0,
                 double_word_access_points: 0,
             };
-            let cmd: SLMPRandomWriteCommand = query.try_into()?;
+            let cmd: SLMPRandomWriteCommand = query.into();
 
             self.request_response(&cmd).await.map(|_| ())?;
         }
@@ -388,7 +386,7 @@ impl SLMPClient {
                 word_access_points,
                 bit_access_points
             };
-            let cmd: SLMPBlockWriteCommand = query.try_into()?;
+            let cmd: SLMPBlockWriteCommand = query.into();
 
             self.request_response(&cmd).await.map(|_| ())?;
         }
@@ -404,7 +402,7 @@ impl SLMPClient {
             device_num,
             data_type,
         };
-        let cmd: SLMPBulkReadCommand = query.try_into()?;
+        let cmd: SLMPBulkReadCommand = query.into();
 
         let recv: &[u8] = &(self.request_response(&cmd).await?);
 
@@ -451,7 +449,7 @@ impl SLMPClient {
             connection_props: &self.connection_props,
             monitor_list: &monitor_list
         };
-        let cmd: SLMPRandomReadCommand = query.try_into()?;
+        let cmd: SLMPRandomReadCommand = query.into();
 
         let recv: &[u8] = &(self.request_response(&cmd).await?);
 
@@ -477,7 +475,7 @@ impl SLMPClient {
             word_access_points,
             bit_access_points,
         };
-        let cmd: SLMPBlockReadCommand = query.try_into()?;
+        let cmd: SLMPBlockReadCommand = query.into();
 
         let recv: &[u8] = &(self.request_response(&cmd).await?);
 
@@ -531,7 +529,7 @@ impl SLMPClient {
             connection_props: &self.connection_props,
             monitor_list: &monitor_list
         };
-        let cmd: SLMPMonitorRegisterCommand = query.try_into()?;
+        let cmd: SLMPMonitorRegisterCommand = query.into();
         self.request_response(&cmd).await?;
 
         Ok(monitor_list)
@@ -542,7 +540,7 @@ impl SLMPClient {
         let query = SLMPMonitorReadQuery {
             connection_props: &self.connection_props
         };
-        let cmd: SLMPMonitorReadCommand = query.try_into()?;
+        let cmd: SLMPMonitorReadCommand = query.into();
         let recv: &[u8] = &(self.request_response(&cmd).await?);
 
         Ok(monitor_list.parse(&recv))

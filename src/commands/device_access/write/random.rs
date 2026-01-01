@@ -21,30 +21,27 @@ impl std::ops::Deref for SLMPRandomWriteCommand {
     }
 }
 
-impl<'a> TryFrom<SLMPRandomWriteQuery<'a>> for SLMPRandomWriteCommand {
-    type Error = std::io::Error;
-    fn try_from(value: SLMPRandomWriteQuery) -> Result<Self, Self::Error> {
-        let cmd = construct_frame(value)?;
-        Ok(Self(cmd))
+impl<'a> From<SLMPRandomWriteQuery<'a>> for SLMPRandomWriteCommand {
+    fn from(value: SLMPRandomWriteQuery) -> Self {
+        let cmd = construct_frame(value);
+        Self(cmd)
     }
 }
 
-fn get_subcommand(cpu: CPU, access_type: AccessType) -> std::io::Result<[u8; 2]> {
+const fn get_subcommand(cpu: CPU, access_type: AccessType) -> [u8; 2] {
     match access_type {
         AccessType::Bit => match cpu {
-            CPU::Q | CPU::L => Ok([0x01, 0x00]),
-            CPU::R => Ok([0x03, 0x00]),
-            _ => Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
+            CPU::Q | CPU::L => [0x01, 0x00],
+            CPU::R => [0x03, 0x00],
         },
         AccessType::Word => match cpu {
-            CPU::Q | CPU::L => Ok([0x00, 0x00]),
-            CPU::R => Ok([0x02, 0x00]),
-            _ => Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
+            CPU::Q | CPU::L => [0x00, 0x00],
+            CPU::R => [0x02, 0x00],
         }
     }
 }
 
-fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
+fn construct_frame(query: SLMPRandomWriteQuery) -> Vec<u8> {
 
     const SINGLE_WORD_BYTELEN: u8 = 2;
     const DOUBLE_WORD_BYTELEN: u8 = 4;
@@ -52,17 +49,16 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
     let bit_bytelen = match query.connection_props.cpu {
         CPU::Q | CPU::L => 1,
         CPU::R => 2,
-        _ => return Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
     };
 
-    let device_addr_bytelen: u8 = Device::addr_code_len(query.connection_props.cpu)?;
+    let device_addr_bytelen: u8 = Device::addr_code_len(query.connection_props.cpu);
     let bit_wreq_bytelen: u8 = device_addr_bytelen + bit_bytelen;
     let single_word_wreq_bytelen: u8 = device_addr_bytelen + SINGLE_WORD_BYTELEN;
     let double_word_wreq_bytelen: u8 = device_addr_bytelen + DOUBLE_WORD_BYTELEN;
 
     #[allow(nonstandard_style)]
     const command: [u8; 2] = COMMAND_RANDOM_WRITE.to_le_bytes();
-    let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, query.access_type)?;
+    let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, query.access_type);
 
     let data_packet_len = match query.access_type {
         AccessType::Word => {
@@ -92,13 +88,13 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
                         let bytelen = n as usize * 2;
                         let data = &x.data.to_bytes()[..bytelen];
                         for word_data in data.chunks_exact(SINGLE_WORD_BYTELEN as usize) {
-                            data_packet.extend(target_device.serialize(query.connection_props.cpu)?);
+                            data_packet.extend(target_device.serialize(query.connection_props.cpu));
                             data_packet.extend(word_data);
                             target_device.address += 1 as usize;
                         }
                     },
                     _ => {
-                        data_packet.extend(&x.device.serialize(query.connection_props.cpu)?);
+                        data_packet.extend(&x.device.serialize(query.connection_props.cpu));
                         data_packet.extend(x.data.to_bytes());
                     }
                 }
@@ -107,7 +103,7 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
         AccessType::Bit => {
             data_packet.push(query.bit_access_points);
              for x in query.sorted_data {
-                data_packet.extend(&x.device.serialize(query.connection_props.cpu)?);
+                data_packet.extend(&x.device.serialize(query.connection_props.cpu));
                 data_packet.push(matches!(x.data, TypedData::Bool(true)) as u8);
                 if query.connection_props.cpu == CPU::R {
                     data_packet.push(0);
@@ -125,5 +121,5 @@ fn construct_frame(query: SLMPRandomWriteQuery) -> std::io::Result<Vec<u8>> {
     packet.extend(subcommand);
     packet.extend(data_packet);
 
-    Ok(packet)
+    packet
 }

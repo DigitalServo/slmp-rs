@@ -71,7 +71,7 @@ pub enum DeviceType {
 
 impl DeviceType {
     /// Convert a device_type into a byte code for the SLMP communication
-    pub fn to_code(&self) -> u8 {
+    pub const fn to_code(&self) -> u8 {
         match self {
             Self::X => 0x9c,
             Self::Y => 0x9d,
@@ -115,22 +115,20 @@ pub struct Device {
 
 impl Device {
     /// Convert a device pointer to a byte code for SLMP communication.
-    pub fn serialize(&self, cpu: CPU) -> std::io::Result<Box<[u8]>> {
+    pub fn serialize(&self, cpu: CPU) -> Box<[u8]> {
         let device_code: u8 = self.device_type.to_code();
         let address: [u8; 8] = self.address.to_le_bytes();
         let ret = match cpu {
             CPU::Q | CPU::L => [address[0], address[1], address[2], device_code].into(),
-            CPU::R => [address[0], address[1], address[2], 0x00, device_code, 0x00].into(),
-            _ => return Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
+            CPU::R => [address[0], address[1], address[2], 0x00, device_code, 0x00].into()
         };
-        Ok(ret)
+        ret
     }
 
-    pub fn addr_code_len(cpu: CPU) -> std::io::Result<u8> {
+    pub const fn addr_code_len(cpu: CPU) -> u8 {
         match cpu {
-            CPU::Q | CPU::L => Ok(4),
-            CPU::R => Ok(6),
-            _ => return Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
+            CPU::Q | CPU::L => 4,
+            CPU::R => 6,
         }
     }
 }

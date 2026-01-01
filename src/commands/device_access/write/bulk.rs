@@ -17,30 +17,27 @@ impl std::ops::Deref for SLMPBulkWriteCommand {
     }
 }
 
-impl<'a> TryFrom<SLMPBulkWriteQuery<'a>> for SLMPBulkWriteCommand {
-    type Error = std::io::Error;
-    fn try_from(value: SLMPBulkWriteQuery) -> Result<Self, Self::Error> {
-        let cmd = construct_frame(value)?;
-        Ok(Self(cmd))
+impl<'a> From<SLMPBulkWriteQuery<'a>> for SLMPBulkWriteCommand {
+    fn from(value: SLMPBulkWriteQuery) -> Self {
+        let cmd = construct_frame(value);
+        Self(cmd)
     }
 }
 
-fn get_subcommand(cpu: CPU, access_type: AccessType) -> std::io::Result<[u8; 2]> {
+const fn get_subcommand(cpu: CPU, access_type: AccessType) -> [u8; 2] {
     match access_type {
         AccessType::Bit => match cpu {
-            CPU::Q | CPU::L => Ok([0x01, 0x00]),
-            CPU::R => Ok([0x03, 0x00]),
-            _ => Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
+            CPU::Q | CPU::L => [0x01, 0x00],
+            CPU::R => [0x03, 0x00],
         },
         AccessType::Word => match cpu {
-            CPU::Q | CPU::L => Ok([0x00, 0x00]),
-            CPU::R => Ok([0x02, 0x00]),
-            _ => Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
+            CPU::Q | CPU::L => [0x00, 0x00],
+            CPU::R => [0x02, 0x00],
         }
     }
 }
 
-fn construct_frame(query: SLMPBulkWriteQuery) -> std::io::Result<Vec<u8>> {
+fn construct_frame(query: SLMPBulkWriteQuery) -> Vec<u8> {
 
     let access_type: AccessType = match query.data.iter().all(|x| matches!(x, TypedData::Bool(_))) {
         true => AccessType::Bit,
@@ -49,9 +46,9 @@ fn construct_frame(query: SLMPBulkWriteQuery) -> std::io::Result<Vec<u8>> {
 
     #[allow(nonstandard_style)]
     const command: [u8; 2] = COMMAND_BULK_WRITE.to_le_bytes();
-    let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, access_type)?;
+    let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, access_type);
 
-    let start_address: Box<[u8]> = query.start_device.serialize(query.connection_props.cpu)?;
+    let start_address: Box<[u8]> = query.start_device.serialize(query.connection_props.cpu);
 
     let mut data_packet: Vec<u8> = vec![];
 
@@ -94,5 +91,5 @@ fn construct_frame(query: SLMPBulkWriteQuery) -> std::io::Result<Vec<u8>> {
     packet.extend(subcommand);
     packet.extend(data_packet);
 
-    Ok(packet)
+    packet
 }

@@ -17,15 +17,14 @@ impl std::ops::Deref for SLMPRandomReadCommand {
     }
 }
 
-impl<'a> TryFrom<SLMPRandomReadQuery<'a>> for SLMPRandomReadCommand {
-    type Error = std::io::Error;
-    fn try_from(value: SLMPRandomReadQuery<'a>) -> Result<Self, Self::Error> {
-        let cmd = construct_frame(value)?;
-        Ok(Self(cmd))
+impl<'a> From<SLMPRandomReadQuery<'a>> for SLMPRandomReadCommand {
+    fn from(value: SLMPRandomReadQuery<'a>) -> Self {
+        let cmd = construct_frame(value);
+        Self(cmd)
     }
 }
 
-fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
+fn construct_frame (query: SLMPRandomReadQuery) -> Vec<u8> {
 
     const ACCESS_POINTS_BYTELEN: usize = 2;
 
@@ -33,11 +32,10 @@ fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
     const command: [u8; 2] = COMMAND_RANDOM_READ.to_le_bytes();
     let subcommand: [u8; 2] = match query.connection_props.cpu {
         CPU::Q | CPU::L => [0x00, 0x00],
-        CPU::R => [0x02, 0x00],
-        _ => return Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
+        CPU::R => [0x02, 0x00]
     };
 
-    let device_addr_bytelen: usize = Device::addr_code_len(query.connection_props.cpu)? as usize;
+    let device_addr_bytelen: usize = Device::addr_code_len(query.connection_props.cpu) as usize;
     let total_access_points: usize = (query.monitor_list.single_word_access_points + query.monitor_list.double_word_access_points) as usize;
 
     let data_packet_len: usize = ACCESS_POINTS_BYTELEN + (total_access_points * device_addr_bytelen);
@@ -52,11 +50,11 @@ fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
             DeviceSize::MultiWord(n) => {
                 let mut target_device = device.1.device;
                 for _ in 0..n {
-                    data_packet.extend(target_device.serialize(query.connection_props.cpu)?);
+                    data_packet.extend(target_device.serialize(query.connection_props.cpu));
                     target_device.address += 1 as usize;
                 }
             },
-            _ => data_packet.extend(device.1.device.serialize(query.connection_props.cpu)?),
+            _ => data_packet.extend(device.1.device.serialize(query.connection_props.cpu)),
         };
     }
 
@@ -69,5 +67,5 @@ fn construct_frame (query: SLMPRandomReadQuery) -> std::io::Result<Vec<u8>> {
     packet.extend(subcommand);
     packet.extend(data_packet);
 
-    Ok(packet)
+    packet
 }

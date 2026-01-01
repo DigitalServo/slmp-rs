@@ -18,29 +18,27 @@ impl std::ops::Deref for SLMPBlockWriteCommand {
     }
 }
 
-impl<'a> TryFrom<SLMPBlockWriteQuery<'a>> for SLMPBlockWriteCommand {
-    type Error = std::io::Error;
-    fn try_from(value: SLMPBlockWriteQuery) -> Result<Self, Self::Error> {
-        let cmd = construct_frame(value)?;
-        Ok(Self(cmd))
+impl<'a> From<SLMPBlockWriteQuery<'a>> for SLMPBlockWriteCommand {
+    fn from(value: SLMPBlockWriteQuery) -> Self {
+        let cmd = construct_frame(value);
+        Self(cmd)
     }
 }
 
-fn construct_frame(query: SLMPBlockWriteQuery) -> std::io::Result<Vec<u8>> {
+fn construct_frame(query: SLMPBlockWriteQuery) -> Vec<u8> {
 
     #[allow(nonstandard_style)]
     const command: [u8; 2] = COMMAND_BLOCK_WRITE.to_le_bytes();
     let subcommand: [u8; 2] = match query.connection_props.cpu {
-        CPU::Q | CPU::L => Ok([0x00, 0x00]),
-        CPU::R => Ok([0x02, 0x00]),
-        _ => Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
-    }?;
+        CPU::Q | CPU::L => [0x00, 0x00],
+        CPU::R => [0x02, 0x00],
+    };
 
     let mut data_packet: Vec<u8> = vec![];
 
     data_packet.extend([query.word_access_points, query.bit_access_points]);
     for block in query.sorted_data {
-        let start_address: Box<[u8]> = block.start_device.serialize(query.connection_props.cpu)?;
+        let start_address: Box<[u8]> = block.start_device.serialize(query.connection_props.cpu);
 
         match block.access_type {
             AccessType::Word => {
@@ -86,5 +84,5 @@ fn construct_frame(query: SLMPBlockWriteQuery) -> std::io::Result<Vec<u8>> {
     packet.extend(subcommand);
     packet.extend(data_packet);
 
-    Ok(packet)
+    packet
 }

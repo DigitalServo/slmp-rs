@@ -20,28 +20,26 @@ impl std::ops::Deref for SLMPBlockReadCommand {
     }
 }
 
-impl<'a> TryFrom<SLMPBlockReadQuery<'a>> for SLMPBlockReadCommand {
-    type Error = std::io::Error;
-    fn try_from(value: SLMPBlockReadQuery<'a>) -> Result<Self, Self::Error> {
-        let cmd = construct_frame(value)?;
-        Ok(Self(cmd))
+impl<'a> From<SLMPBlockReadQuery<'a>> for SLMPBlockReadCommand {
+    fn from(value: SLMPBlockReadQuery<'a>) -> Self {
+        let cmd = construct_frame(value);
+        Self(cmd)
     }
 }
 
-fn construct_frame (query: SLMPBlockReadQuery) -> std::io::Result<Vec<u8>> {
+fn construct_frame (query: SLMPBlockReadQuery) -> Vec<u8> {
 
     const ACCESS_POINTS_BYTELEN: usize = 2;
     const DEVICE_SIZE_BYTELEN: u8 = 2;
-    let device_addr_bytelen: u8 = Device::addr_code_len(query.connection_props.cpu)?;
+    let device_addr_bytelen: u8 = Device::addr_code_len(query.connection_props.cpu);
     let device_rreq_bytelen: u8 = device_addr_bytelen + DEVICE_SIZE_BYTELEN;
 
     #[allow(nonstandard_style)]
     const command: [u8; 2] = COMMAND_BLOCK_READ.to_le_bytes();
     let subcommand: [u8; 2] = match query.connection_props.cpu {
-        CPU::Q | CPU::L => Ok([0x00, 0x00]),
-        CPU::R => Ok([0x02, 0x00]),
-        _ => Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported CPU"))
-    }?;
+        CPU::Q | CPU::L => [0x00, 0x00],
+        CPU::R => [0x02, 0x00],
+    };
 
     let total_access_points: u8 = query.word_access_points + query.bit_access_points;
 
@@ -55,7 +53,7 @@ fn construct_frame (query: SLMPBlockReadQuery) -> std::io::Result<Vec<u8>> {
             AccessType::Bit => div_ceil(block.size, 8),
         } as u16;
 
-        data_packet.extend(block.start_device.serialize(query.connection_props.cpu)?);
+        data_packet.extend(block.start_device.serialize(query.connection_props.cpu));
         data_packet.extend(request_size.to_le_bytes());
     }
 
@@ -68,5 +66,5 @@ fn construct_frame (query: SLMPBlockReadQuery) -> std::io::Result<Vec<u8>> {
     packet.extend(subcommand);
     packet.extend(data_packet);
 
-    Ok(packet)
+    packet
 }
