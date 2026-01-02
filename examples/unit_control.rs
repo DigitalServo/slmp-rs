@@ -29,46 +29,46 @@ async fn main() {
     client.echo().await.unwrap();
     println!("Echo succeess");
 
-    // // Lock & Unlock
-    // let password = "123456";
+    // Lock & Unlock
+    let password = "123456";
 
-    // client.lock_cpu(password).await.unwrap();
-    // println!("cpu locked");
+    client.lock_cpu(password).await.unwrap();
+    println!("cpu locked");
+    wait().await;
+
+    client.unlock_cpu(password).await.unwrap();
+    println!("cpu unlocked");
+    wait().await;
+
+    // Stop
+    client.stop_cpu().await.unwrap();
+    println!("cpu stopped");
+    wait().await;
+
+    // Latch clear
+    client.clear_latch().await.unwrap();
+    println!("latch cleared");
+    wait().await;
+
+    // Reset
+    // client.reset_cpu().await.unwrap();
+    // println!("cpu reset");
     // wait().await;
 
-    // client.unlock_cpu(password).await.unwrap();
-    // println!("cpu unlocked");
-    // wait().await;
+    // Run
+    client.run_cpu().await.unwrap();
+    println!("cpu started");
+    wait().await;
 
-    // // Stop
-    // client.stop_cpu().await.unwrap();
-    // println!("cpu stopped");
-    // wait().await;
+    // Pause
+    client.pause_cpu().await.unwrap();
+    println!("cpu paused");
+    wait().await;
 
-    // // Latch clear
-    // client.clear_latch().await.unwrap();
-    // println!("latch cleared");
-    // wait().await;
-
-    // // Reset
-    // // client.reset_cpu().await.unwrap();
-    // // println!("cpu reset");
-    // // wait().await;
-
-    // // Run
-    // client.run_cpu().await.unwrap();
-    // println!("cpu started");
-    // wait().await;
-
-    // // Pause
-    // client.pause_cpu().await.unwrap();
-    // println!("cpu paused");
-    // wait().await;
-
-    // // Run
-    // client.run_cpu().await.unwrap();
-    // println!("cpu started");
-    // wait().await;
+    // Run
+    client.run_cpu().await.unwrap();
+    println!("cpu started");
+    wait().await;
 
     client.close().await;
 }

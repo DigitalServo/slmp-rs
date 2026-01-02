@@ -1,16 +1,16 @@
-use crate::{AccessType, BlockedDeviceData, CPU, SLMP4EConnectionProps, TypedData, bits_to_u8, div_ceil};
-use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
+use crate::{AccessType, BlockedDeviceData, CPU, TypedData, bits_to_u8, div_ceil};
+use crate::commands::COMMAND_BYTELEN;
 
 const COMMAND_BLOCK_WRITE: u16 = 0x1406;
 
-pub struct SLMPBlockWriteQuery<'a> {
-    pub connection_props: &'a SLMP4EConnectionProps,
+pub(crate) struct SLMPBlockWriteQuery<'a> {
+    pub cpu: &'a CPU,
     pub sorted_data: &'a [BlockedDeviceData<'a>],
     pub word_access_points: u8,
     pub bit_access_points: u8,
 }
 
-pub struct SLMPBlockWriteCommand(pub Vec<u8>);
+pub(crate) struct SLMPBlockWriteCommand(pub Vec<u8>);
 impl std::ops::Deref for SLMPBlockWriteCommand {
     type Target = Vec<u8>;
     fn deref(&self) -> &Self::Target {
@@ -27,9 +27,8 @@ impl<'a> From<SLMPBlockWriteQuery<'a>> for SLMPBlockWriteCommand {
 
 fn construct_frame(query: SLMPBlockWriteQuery) -> Vec<u8> {
 
-    #[allow(nonstandard_style)]
-    const command: [u8; 2] = COMMAND_BLOCK_WRITE.to_le_bytes();
-    let subcommand: [u8; 2] = match query.connection_props.cpu {
+    const COMMAND: [u8; 2] = COMMAND_BLOCK_WRITE.to_le_bytes();
+    let subcommand: [u8; 2] = match query.cpu {
         CPU::Q | CPU::L => [0x00, 0x00],
         CPU::R => [0x02, 0x00],
     };
@@ -38,7 +37,7 @@ fn construct_frame(query: SLMPBlockWriteQuery) -> Vec<u8> {
 
     data_packet.extend([query.word_access_points, query.bit_access_points]);
     for block in query.sorted_data {
-        let start_address: Box<[u8]> = block.start_device.serialize(query.connection_props.cpu);
+        let start_address: Box<[u8]> = block.start_device.serialize(query.cpu);
 
         match block.access_type {
             AccessType::Word => {
@@ -75,12 +74,8 @@ fn construct_frame(query: SLMPBlockWriteQuery) -> Vec<u8> {
         }
     }
 
-    let command_len: u16 = (COMMAND_PREFIX_BYTELEN + data_packet.len()) as u16;
-    let header: [u8; HEADER_BYTELEN + CPUTIMER_BYTELEN] = query.connection_props.generate_header(command_len);
-
-    let mut packet: Vec<u8> = Vec::with_capacity(HEADER_BYTELEN + command_len as usize);
-    packet.extend(header);
-    packet.extend(command);
+    let mut packet: Vec<u8> = Vec::with_capacity(COMMAND_BYTELEN + data_packet.len());
+    packet.extend(COMMAND);
     packet.extend(subcommand);
     packet.extend(data_packet);
 

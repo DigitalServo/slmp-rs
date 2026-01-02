@@ -24,12 +24,13 @@ pub use device::{AccessType, Device, DeviceType, DeviceData, DeviceBlock, Blocke
 pub use monitor::{MonitorList, MonitorRequest, MonitoredDevice};
 pub use manager::{SLMPConnectionManager, SLMPWorker};
 
-
 // Constants
-const BUFSIZE: usize = 1024;
+const BUFSIZE: usize = 2048;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(1);
 const DEFAULT_SEND_TIMEOUT_SEC: Duration = Duration::from_secs(1);
 const DEFAULT_RECV_TIMEOUT_SEC: Duration = Duration::from_secs(1);
+
+const SUBHEADER_LEN: usize = 15;
 
 macro_rules! invalidDataError {
     ($msg:expr) => {
@@ -73,30 +74,30 @@ impl<'a> TryFrom<&'a SLMP4EConnectionProps> for SocketAddr {
     }
 }
 
-impl SLMP4EConnectionProps {
-    #[inline(always)]
-    const fn generate_header(&self, command_len: u16) -> [u8; 15] {
-        const BLANK_CODE: u8 = 0x00;
-        const REQUEST_CODE: [u8; 2] = [0x54, 0x00];
+#[inline(always)]
+const fn create_subheader(connection_props: &SLMP4EConnectionProps, command_len: usize) -> [u8; SUBHEADER_LEN] {
+    const BLANK_CODE: u8 = 0x00;
+    const REQUEST_CODE: [u8; 2] = [0x54, 0x00];
+    const CPUTIMER_LEN: usize = 2;
 
-        let serial_id: [u8; 2] = self.serial_id.to_le_bytes();
-        let io_id: [u8; 2] = self.io_id.to_le_bytes();
-        let cpu_timer: [u8; 2] = self.cpu_timer.to_le_bytes();
-        let command_len: [u8; 2] = command_len.to_le_bytes();
+    let serial_id: [u8; 2] = connection_props.serial_id.to_le_bytes();
+    let io_id: [u8; 2] = connection_props.io_id.to_le_bytes();
+    let cpu_timer: [u8; 2] = connection_props.cpu_timer.to_le_bytes();
 
-        [
-            REQUEST_CODE[0], REQUEST_CODE[1],
-            serial_id[0], serial_id[1],
-            BLANK_CODE, BLANK_CODE,
-            self.network_id,
-            self.pc_id,
-            io_id[0], io_id[1],
-            self.area_id,
-            command_len[0], command_len[1],
-            cpu_timer[0], cpu_timer[1],
-        ]
+    // "Command length" counts the packet from cpu_timer
+    let command_len: [u8; 2] = ((command_len + CPUTIMER_LEN) as u16).to_le_bytes();
 
-    }
+    [
+        REQUEST_CODE[0], REQUEST_CODE[1],
+        serial_id[0], serial_id[1],
+        BLANK_CODE, BLANK_CODE,
+        connection_props.network_id,
+        connection_props.pc_id,
+        io_id[0], io_id[1],
+        connection_props.area_id,
+        command_len[0], command_len[1],
+        cpu_timer[0], cpu_timer[1],
+    ]
 }
 
 #[derive(Clone)]
@@ -158,10 +159,17 @@ impl SLMPClient {
     async fn request_response(&mut self, msg: &[u8]) -> std::io::Result<&[u8]> {
         const RECVFRAME_PREFIX_FIXED_LEN: usize = 15;
 
+        let msg_len: usize = msg.len();
+        let subheader: [u8; SUBHEADER_LEN] = create_subheader(&self.connection_props, msg_len);
+
+        let mut send_msg: Vec<u8> = Vec::with_capacity(SUBHEADER_LEN + msg_len);
+        send_msg.extend(&subheader);
+        send_msg.extend(msg);
+
         let mut stream = self.stream.lock().await;
         let stream = stream.as_mut().ok_or(std::io::Error::new(std::io::ErrorKind::NotConnected, "Not Connected"))?;
 
-        timeout(self.send_timeout, stream.write_all(&msg)).await
+        timeout(self.send_timeout, stream.write_all(&send_msg)).await
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::TimedOut,"Send Failed (Timeout)"))??;
 
         let bytes_read = timeout(self.recv_timeout, stream.read(&mut self.buffer)).await
@@ -221,33 +229,33 @@ impl SLMPClient {
     /* Unit Control */
 
     pub async fn run_cpu(&mut self) -> std::io::Result<()> {
-        let cmd = unit_control::remote_run(&self.connection_props);
-        self.request_response(&cmd).await.map(|_| ())
+        const COMMAND: [u8; 8] = unit_control::remote_run();
+        self.request_response(&COMMAND).await.map(|_| ())
     }
 
     pub async fn stop_cpu(&mut self) -> std::io::Result<()> {
-        let cmd = unit_control::remote_stop(&self.connection_props);
-        self.request_response(&cmd).await.map(|_| ())
+        const COMMAND: [u8; 6] = unit_control::remote_stop();
+        self.request_response(&COMMAND).await.map(|_| ())
     }
 
     pub async fn pause_cpu(&mut self) -> std::io::Result<()> {
-        let cmd = unit_control::remote_pause(&self.connection_props);
-        self.request_response(&cmd).await.map(|_| ())
+        const COMMAND: [u8; 6] = unit_control::remote_pause();
+        self.request_response(&COMMAND).await.map(|_| ())
     }
 
     pub async fn clear_latch(&mut self) -> std::io::Result<()> {
-        let cmd = unit_control::remote_latch_clear(&self.connection_props);
-        self.request_response(&cmd).await.map(|_| ())
+        const COMMAND: [u8; 6] = unit_control::remote_latch_clear();
+        self.request_response(&COMMAND).await.map(|_| ())
     }
 
     pub async fn reset_cpu(&mut self) -> std::io::Result<()> {
-        let cmd = unit_control::remote_reset(&self.connection_props);
-        self.request_response(&cmd).await.map(|_| ())
+        const COMMAND: [u8; 6] = unit_control::remote_reset();
+        self.request_response(&COMMAND).await.map(|_| ())
     }
 
     pub async fn get_cpu_type(&mut self) -> std::io::Result<String> {
-        let cmd = unit_control::get_cpu_type(&self.connection_props);
-        let ret = self.request_response(&cmd).await?;
+        const COMMAND: [u8; 4] = unit_control::get_cpu_type();
+        let ret = self.request_response(&COMMAND).await?;
 
         const END_CODE: u8 = 0x20;
         let end_pos = ret.iter().position(|&b| b == END_CODE).unwrap_or(ret.len());
@@ -257,18 +265,18 @@ impl SLMPClient {
     }
 
     pub async fn lock_cpu(&mut self, password: &str) -> std::io::Result<()> {
-        let cmd = unit_control::lock_cpu(&self.connection_props, password)?;
+        let cmd = unit_control::lock_cpu(&self.connection_props.cpu, password)?;
         self.request_response(&cmd).await.map(|_| ())
     }
 
     pub async fn unlock_cpu(&mut self, password: &str) -> std::io::Result<()> {
-        let cmd = unit_control::unlock_cpu(&self.connection_props, password)?;
+        let cmd = unit_control::unlock_cpu(&self.connection_props.cpu, password)?;
         self.request_response(&cmd).await.map(|_| ())
     }
 
     pub async fn echo(&mut self) -> std::io::Result<()> {
-        let cmd = unit_control::echo(&self.connection_props);
-        let recv = self.request_response(&cmd).await
+        const COMMAND: [u8; 10] = unit_control::echo();
+        let recv = self.request_response(&COMMAND).await
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::NetworkDown, "Echo response did not return in time"))?;
 
         if &recv[2..6] ==  unit_control::ECHO_MESSAGE {
@@ -289,7 +297,7 @@ impl SLMPClient {
     {
         if data.len() > 0 {
             let query = SLMPBulkWriteQuery {
-                connection_props: &self.connection_props,
+                cpu: &self.connection_props.cpu,
                 start_device,
                 data,
             };
@@ -342,7 +350,7 @@ impl SLMPClient {
 
         if single_word_access_points + double_word_access_points > 0 {
             let query = SLMPRandomWriteQuery {
-                connection_props: &self.connection_props,
+                cpu: &self.connection_props.cpu,
                 sorted_data: &sorted_word_data,
                 access_type: AccessType::Word,
                 bit_access_points: 0,
@@ -356,7 +364,7 @@ impl SLMPClient {
 
         if bit_access_points > 0 {
             let query = SLMPRandomWriteQuery {
-                connection_props: &self.connection_props,
+                cpu: &self.connection_props.cpu,
                 sorted_data: &sorted_bit_data,
                 access_type: AccessType::Bit,
                 bit_access_points,
@@ -381,7 +389,7 @@ impl SLMPClient {
 
         if word_access_points + bit_access_points > 0 {
             let query = SLMPBlockWriteQuery {
-                connection_props: &self.connection_props,
+                cpu: &self.connection_props.cpu,
                 sorted_data: &sorted_data,
                 word_access_points,
                 bit_access_points
@@ -397,7 +405,7 @@ impl SLMPClient {
     pub async fn bulk_read(&mut self, start_device: Device, device_num: usize, data_type: DataType) -> std::io::Result<Vec<DeviceData>>
     {
         let query = SLMPBulkReadQuery {
-            connection_props: &self.connection_props,
+            cpu: &self.connection_props.cpu,
             start_device,
             device_num,
             data_type,
@@ -446,7 +454,7 @@ impl SLMPClient {
         let monitor_list = MonitorList::from(devices);
 
         let query = SLMPRandomReadQuery {
-            connection_props: &self.connection_props,
+            cpu: &self.connection_props.cpu,
             monitor_list: &monitor_list
         };
         let cmd: SLMPRandomReadCommand = query.into();
@@ -470,7 +478,7 @@ impl SLMPClient {
         let bit_access_points: u8 = sorted_block.iter().filter(|x| x.access_type == AccessType::Bit).count() as u8;
 
         let query = SLMPBlockReadQuery {
-            connection_props: &self.connection_props,
+            cpu: &self.connection_props.cpu,
             sorted_block: &sorted_block,
             word_access_points,
             bit_access_points,
@@ -526,7 +534,7 @@ impl SLMPClient {
     {
         let monitor_list = MonitorList::from(devices);
         let query = SLMPMonitorRegisterQuery {
-            connection_props: &self.connection_props,
+            cpu: &self.connection_props.cpu,
             monitor_list: &monitor_list
         };
         let cmd: SLMPMonitorRegisterCommand = query.into();
@@ -537,11 +545,8 @@ impl SLMPClient {
 
     pub async fn monitor_read(&mut self, monitor_list: &MonitorList) -> std::io::Result<Vec<DeviceData>>
     {
-        let query = SLMPMonitorReadQuery {
-            connection_props: &self.connection_props
-        };
-        let cmd: SLMPMonitorReadCommand = query.into();
-        let recv: &[u8] = &(self.request_response(&cmd).await?);
+        const COMMAND: SLMPMonitorReadCommand = SLMPMonitorReadCommand::new();
+        let recv: &[u8] = &(self.request_response(&COMMAND).await?);
 
         Ok(monitor_list.parse(&recv))
     }

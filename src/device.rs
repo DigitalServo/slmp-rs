@@ -20,14 +20,14 @@ pub(crate) enum DeviceSize {
     MultiWord(u8) = 4,
 }
 
-impl From<DeviceSize> for u16 {
+impl From<DeviceSize> for usize {
     #[inline(always)]
     fn from(value: DeviceSize) -> Self {
         match value {
             DeviceSize::Bit => 1,
             DeviceSize::SingleWord => 1,
             DeviceSize::DoubleWord => 2,
-            DeviceSize::MultiWord(n) => n as u16
+            DeviceSize::MultiWord(n) => n as usize
         }
     }
 }
@@ -115,7 +115,7 @@ pub struct Device {
 
 impl Device {
     /// Convert a device pointer to a byte code for SLMP communication.
-    pub fn serialize(&self, cpu: CPU) -> Box<[u8]> {
+    pub fn serialize(&self, cpu: &CPU) -> Box<[u8]> {
         let device_code: u8 = self.device_type.to_code();
         let address: [u8; 8] = self.address.to_le_bytes();
         let ret = match cpu {
@@ -125,7 +125,7 @@ impl Device {
         ret
     }
 
-    pub const fn addr_code_len(cpu: CPU) -> u8 {
+    pub const fn addr_code_len(cpu: &CPU) -> u8 {
         match cpu {
             CPU::Q | CPU::L => 4,
             CPU::R => 6,

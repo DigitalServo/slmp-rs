@@ -1,15 +1,15 @@
-use crate::{AccessType, CPU, Device, SLMP4EConnectionProps, TypedData, div_ceil};
-use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
+use crate::{AccessType, CPU, Device, TypedData, div_ceil};
+use crate::commands::COMMAND_BYTELEN;
 
 const COMMAND_BULK_WRITE: u16 = 0x1401;
 
-pub struct SLMPBulkWriteQuery<'a> {
-    pub connection_props: &'a SLMP4EConnectionProps,
+pub(crate) struct SLMPBulkWriteQuery<'a> {
+    pub cpu: &'a CPU,
     pub start_device: Device,
     pub data: &'a [TypedData],
 }
 
-pub struct SLMPBulkWriteCommand(pub Vec<u8>);
+pub(crate) struct SLMPBulkWriteCommand(pub Vec<u8>);
 impl std::ops::Deref for SLMPBulkWriteCommand {
     type Target = Vec<u8>;
     fn deref(&self) -> &Self::Target {
@@ -24,19 +24,6 @@ impl<'a> From<SLMPBulkWriteQuery<'a>> for SLMPBulkWriteCommand {
     }
 }
 
-const fn get_subcommand(cpu: CPU, access_type: AccessType) -> [u8; 2] {
-    match access_type {
-        AccessType::Bit => match cpu {
-            CPU::Q | CPU::L => [0x01, 0x00],
-            CPU::R => [0x03, 0x00],
-        },
-        AccessType::Word => match cpu {
-            CPU::Q | CPU::L => [0x00, 0x00],
-            CPU::R => [0x02, 0x00],
-        }
-    }
-}
-
 fn construct_frame(query: SLMPBulkWriteQuery) -> Vec<u8> {
 
     let access_type: AccessType = match query.data.iter().all(|x| matches!(x, TypedData::Bool(_))) {
@@ -44,11 +31,19 @@ fn construct_frame(query: SLMPBulkWriteQuery) -> Vec<u8> {
         false => AccessType::Word
     };
 
-    #[allow(nonstandard_style)]
-    const command: [u8; 2] = COMMAND_BULK_WRITE.to_le_bytes();
-    let subcommand: [u8; 2] = get_subcommand(query.connection_props.cpu, access_type);
+    const COMMAND: [u8; 2] = COMMAND_BULK_WRITE.to_le_bytes();
+    let subcommand: [u8; 2] = match access_type {
+        AccessType::Bit => match query.cpu {
+            CPU::Q | CPU::L => [0x01, 0x00],
+            CPU::R => [0x03, 0x00],
+        },
+        AccessType::Word => match query.cpu {
+            CPU::Q | CPU::L => [0x00, 0x00],
+            CPU::R => [0x02, 0x00],
+        }
+    };
 
-    let start_address: Box<[u8]> = query.start_device.serialize(query.connection_props.cpu);
+    let start_address: Box<[u8]> = query.start_device.serialize(query.cpu);
 
     let mut data_packet: Vec<u8> = vec![];
 
@@ -82,12 +77,8 @@ fn construct_frame(query: SLMPBulkWriteQuery) -> Vec<u8> {
         }
     }
 
-    let command_len: u16 = (COMMAND_PREFIX_BYTELEN + data_packet.len()) as u16;
-    let header: [u8; HEADER_BYTELEN + CPUTIMER_BYTELEN] = query.connection_props.generate_header(command_len);
-
-    let mut packet: Vec<u8> = Vec::with_capacity(HEADER_BYTELEN + command_len as usize);
-    packet.extend(header);
-    packet.extend(command);
+    let mut packet: Vec<u8> = Vec::with_capacity(COMMAND_BYTELEN + data_packet.len());
+    packet.extend(COMMAND);
     packet.extend(subcommand);
     packet.extend(data_packet);
 

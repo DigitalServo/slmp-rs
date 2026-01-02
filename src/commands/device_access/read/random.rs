@@ -1,15 +1,15 @@
 use crate::device::DeviceSize;
-use crate::{CPU, Device, MonitorList, SLMP4EConnectionProps};
-use crate::commands::{HEADER_BYTELEN, CPUTIMER_BYTELEN, COMMAND_PREFIX_BYTELEN};
+use crate::{CPU, Device, MonitorList};
+use crate::commands::COMMAND_BYTELEN;
 
 const COMMAND_RANDOM_READ: u16 = 0x0403;
 
-pub struct SLMPRandomReadQuery<'a>{
-    pub connection_props: &'a SLMP4EConnectionProps,
+pub(crate) struct SLMPRandomReadQuery<'a>{
+    pub cpu: &'a CPU,
     pub monitor_list: &'a MonitorList
 }
 
-pub struct SLMPRandomReadCommand(pub Vec<u8>);
+pub(crate) struct SLMPRandomReadCommand(pub Vec<u8>);
 impl std::ops::Deref for SLMPRandomReadCommand {
     type Target = Vec<u8>;
     fn deref(&self) -> &Self::Target {
@@ -28,14 +28,13 @@ fn construct_frame (query: SLMPRandomReadQuery) -> Vec<u8> {
 
     const ACCESS_POINTS_BYTELEN: usize = 2;
 
-    #[allow(nonstandard_style)]
-    const command: [u8; 2] = COMMAND_RANDOM_READ.to_le_bytes();
-    let subcommand: [u8; 2] = match query.connection_props.cpu {
+    const COMMAND: [u8; 2] = COMMAND_RANDOM_READ.to_le_bytes();
+    let subcommand: [u8; 2] = match query.cpu {
         CPU::Q | CPU::L => [0x00, 0x00],
         CPU::R => [0x02, 0x00]
     };
 
-    let device_addr_bytelen: usize = Device::addr_code_len(query.connection_props.cpu) as usize;
+    let device_addr_bytelen: usize = Device::addr_code_len(query.cpu) as usize;
     let total_access_points: usize = (query.monitor_list.single_word_access_points + query.monitor_list.double_word_access_points) as usize;
 
     let data_packet_len: usize = ACCESS_POINTS_BYTELEN + (total_access_points * device_addr_bytelen);
@@ -50,20 +49,16 @@ fn construct_frame (query: SLMPRandomReadQuery) -> Vec<u8> {
             DeviceSize::MultiWord(n) => {
                 let mut target_device = device.1.device;
                 for _ in 0..n {
-                    data_packet.extend(target_device.serialize(query.connection_props.cpu));
+                    data_packet.extend(target_device.serialize(query.cpu));
                     target_device.address += 1 as usize;
                 }
             },
-            _ => data_packet.extend(device.1.device.serialize(query.connection_props.cpu)),
+            _ => data_packet.extend(device.1.device.serialize(query.cpu)),
         };
     }
 
-    let command_len: u16 = (COMMAND_PREFIX_BYTELEN + data_packet_len) as u16;
-    let header: [u8; HEADER_BYTELEN + CPUTIMER_BYTELEN] = query.connection_props.generate_header(command_len);
-
-    let mut packet: Vec<u8> = Vec::with_capacity(HEADER_BYTELEN + command_len as usize);
-    packet.extend(header);
-    packet.extend(command);
+    let mut packet: Vec<u8> = Vec::with_capacity(COMMAND_BYTELEN + data_packet_len);
+    packet.extend(COMMAND);
     packet.extend(subcommand);
     packet.extend(data_packet);
 
