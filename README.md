@@ -82,6 +82,13 @@ The sample is prepared in `/examples`:
 cargo r --example unit_control
 ```
 
+## Debuggin Proxy
+To check transferred data between a client and server, you can use a debugging-proxy server.
+```bash
+cargo r --example debugging_proxy
+```
+This could be used by setting IP/port of a proxy server on `SLMP4EConnectionProps` instead of setting those of a SLMP server.
+
 ## Multi-PLC Connection
 `SLMPConnectionManager` allows you to connect a client to multi PLCs.
 You can give a cyclic task to each connection.
