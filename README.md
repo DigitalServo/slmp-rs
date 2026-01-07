@@ -131,7 +131,7 @@ cargo r --example cyclic_read
 ```
 
 > [!CAUTION]
-> The SLMP protocol features a concise presentation layer, and it allows device modifications, file operations, and changes to CPU operation settings without any authentication.
+> The SLMP protocol features a concise presentation layer without any encryption, and it allows device modifications, file operations, and changes to CPU operation settings without any authentication.
 >
 > The following vulnerabilities have been registered with CISA.
 > - CVE-2020-5594: Cleartext Transmission of Sensitive Information
@@ -146,5 +146,5 @@ cargo r --example cyclic_read
 > 
 > (Note: No firmware fix is planned for this vulnerability.)
 > 
-> It should be noted that improper use of SLMP carries significant risks, which allow attacks like man-in-the-middle (MitM), impersonation, denial-of-service (DoS).
+> It should be noted that improper use of SLMP carries significant risks, which allow attacks like man-in-the-middle (MitM), impersonation/spoofing, denial-of-service (DoS).
 > Please use it with caution.
