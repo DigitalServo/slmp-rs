@@ -82,7 +82,7 @@ The sample is prepared in `/examples`:
 cargo r --example unit_control
 ```
 
-## Debuggin Proxy
+## Debugging Proxy
 To check transferred data between a client and server, you can use a debugging-proxy server.
 ```bash
 cargo r --example debugging_proxy
