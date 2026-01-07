@@ -133,9 +133,12 @@ cargo r --example cyclic_read
 > [!CAUTION]
 > The SLMP protocol features a concise presentation layer, and it allows device modifications, file operations, and changes to CPU operation settings without any authentication.
 >
-> For iQ-F series (not supported by this library), these vulnerabilities have been registered with CISA.
-> - CVE-2025-7405: Missing Authentication for Critical Function vulnerability
-> - CVE-2025-7731: Cleartext Transmission of Sensitive Information vulnerability
+> The following vulnerabilities have been registered with CISA.
+> - CVE-2020-5594: Cleartext Transmission of Sensitive Information
+> - CVE-2020-16226: Impersonations of a Legitimate Device by a Malicious Actor
+> - CVE-2023-4699: Arbitrary Command Execution
+> - CVE-2025-7405: Missing Authentication for Critical Function
+> - CVE-2025-7731: Cleartext Transmission of Sensitive Information
 > 
 > In response to the above reports, Mitsubishi Electric has implemented the following countermeasures (as stated in advisory 2025-08-28):
 > - Use a virtual private network (VPN) or similar technology to encrypt SLMP communications.
@@ -143,5 +146,5 @@ cargo r --example cyclic_read
 > 
 > (Note: No firmware fix is planned for this vulnerability.)
 > 
-> It should be noted that improper use of SLMP carries significant risks.
+> It should be noted that improper use of SLMP carries significant risks, which allow attacks like man-in-the-middle (MitM), impersonation, denial-of-service (DoS).
 > Please use it with caution.
