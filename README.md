@@ -1,4 +1,4 @@
-# Seamless Message Protocol (SLMP) for Rust
+# [Seamless Message Protocol (SLMP) for Rust](https://github.com/DigitalServo/slmp-rs)
 This library provides SLMP client to access the PLCs of Mitsubishi Electric
 
 
